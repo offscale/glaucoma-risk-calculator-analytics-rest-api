@@ -1,3 +1,7 @@
 bottle
 webtest
 redis
+sqlalchemy
+pandas
+pytz
+psycopg2
