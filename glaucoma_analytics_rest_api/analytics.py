@@ -23,8 +23,8 @@ else:
         except ImportError:
             from StringIO import StringIO
         oldout, olderr = sys.stdout, sys.stderr
+        out = [StringIO(), StringIO()]
         try:
-            out = [StringIO(), StringIO()]
             sys.stdout, sys.stderr = out
             yield out
         finally:
@@ -32,7 +32,7 @@ else:
             out[0] = out[0].getvalue()
             out[1] = out[1].getvalue()
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 just = 20  # indentation
 
@@ -49,19 +49,48 @@ import pandas as pd
 from pytz import timezone, utc
 
 
-def run():
+def run(event_start, event_end):  # type: (datetime, datetime) -> dict
+    """
+    Runner, wraps stdout and stderr also
+
+    :param event_start: start datetime
+    :type event_start: datetime
+
+    :param event_end: end datetime
+    :type event_end: datetime
+
+    :return: dictionary to show on endpoint
+    :rtype: dict
+    """
     if PY3:
         f = io.StringIO()
         with redirect_stdout(f):
-            _run()
-        return f.getvalue()
+            res = _run(event_start, event_end)
+        res['_out'] = f.getvalue()
     else:
         with capture() as out:
-            _run()
-            return out
+            res = _run(event_start, event_end)
+            res['_out'] = out
+    return res
 
 
-def _run():
+# Server was in UTC, switch datetimes to Sydney
+sydney = utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(timezone('Australia/Sydney')).tzinfo
+
+
+def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
+    """
+    Runner
+
+    :param event_start: start datetime
+    :type event_start: datetime
+
+    :param event_end: end datetime
+    :type event_end: datetime
+
+    :return: dictionary to show on endpoint
+    :rtype: dict
+    """
     engine = create_engine(environ['RDBMS_URI'])
 
     survey_tbl = pd.read_sql_table('survey_tbl', engine)
@@ -70,19 +99,11 @@ def _run():
     risk_res_tbl = pd.read_sql_table('risk_res_tbl', engine)
     print('risk_res_tbl#:'.ljust(just), len(risk_res_tbl.index))
 
-    # Server was in UTC, switch datetimes to Sydney
-
-    sydney = utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(timezone('Australia/Sydney')).tzinfo
     columns = 'createdAt', 'updatedAt'
 
     for df in (survey_tbl, risk_res_tbl):
         for column in columns:
             df[column] = df[column].dt.tz_convert(sydney)
-
-    # Limit selection to 8AM Monday until 2:30PM Monday
-    # (which corresponds with the event start & end time)
-    event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
-    event_end = event_start + timedelta(hours=6, minutes=60)
 
     event_start_iso = event_start.isoformat()
     event_end_iso = event_end.isoformat()
@@ -189,8 +210,6 @@ def _run():
     # assert _s0 == _s1, '{s0} != {s1}'.format(s0=_s0, s1=_s1)
     print('step2_only#:'.ljust(just), '{:0>3}'.format(_s0))
 
-    # In[ ]:
-
     step3_only = survey_tbl[survey_tbl['perceived_risk'].isna()
                             & survey_tbl['risk_res_id'].isna()
                             & survey_tbl['behaviour_change'].notnull()
@@ -208,8 +227,6 @@ def _run():
     assert step3_only['id'].size == int(step3_only_sql['count'])
     step3_only['id'].size
     print('step3_only#:'.ljust(just), '{:0>3}'.format(int(step3_only_sql['count'])))
-
-    # In[ ]:
 
     number_of_risk_res_ids_sql = pd.read_sql_query('''
     SELECT COUNT(risk_res_id)
@@ -283,35 +300,25 @@ def _run():
         return sum(map(lambda s: len(s.index), collection))
 
     step1_cover = cover_fn((step1_only, step1_and_2, step1_and_3))
-    print('step1_cover:'.ljust(just), step1_cover)
 
     step2_cover = cover_fn((step2_only, step2_and_1, step2_and_3))
-    print('step2_cover:'.ljust(just), step2_cover)
 
     step3_cover = cover_fn((step3_only, step3_and_1, step3_and_2))
-    print('step3_cover:'.ljust(just), '{:0>3}'.format(step3_cover))
 
     all_steps = survey_tbl[survey_tbl['perceived_risk'].notnull()
                            & survey_tbl['behaviour_change'].notnull()
                            & survey_tbl['risk_res_id'].notnull()
                            ]
-    print('all_steps#:'.ljust(just), len(all_steps.index))
 
     all_or_one = cover_fn((step1_only, step2_only, step3_only, all_steps))
-    print('all_or_one:'.ljust(just), all_or_one)
 
     total = all_or_one + cover_fn((step1_and_2, step1_and_3, step2_and_3))
-    print('total:'.ljust(just), total)
 
     merged = survey_tbl.merge(risk_res_tbl,
                               left_on='risk_res_id',
                               right_on='id',
                               suffixes=('_survey', '_risk'))
-    print('merged#:'.ljust(just), len(merged.index))
-
-    print('step1_only#:'.ljust(just), len(step1_only.index))
-    print('step2_only#:'.ljust(just), '{:0>3}'.format(len(step2_only.index)))
-    print('step3_only#:'.ljust(just), '{:0>3}'.format(len(step3_only.index)))
+    '''
 
     print('Of the {survey_count:d} entries:\n'
           u'\u2022 {step1_count:0>3d} completed just step 1;\n'
@@ -322,22 +329,23 @@ def _run():
           'Some notable statistics:\n'
           u'\u2022 {completed:.2%} completed the final step; and\n'
           u'\u2022 {email_conversion:.2%} converted (provided their emails).'.format(
-        survey_count=total,
-        # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
-        # + step2_count
-        # + joint['id'].size
-        # ,
-        step1_count=len(step1_only.index),
-        step2_count=len(step2_only.index),
-        step3_count=len(step3_only.index),
-        some_combination=cover_fn((step1_and_2, step1_and_3, step2_and_3)),
-        all_steps=len(all_steps.index),
-        email_conversion=0,  # emails / total,
-        completed=len(all_steps.index) / total
-    ))
+    '''
+    return {'survey_count': total,
+            # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
+            # + step2_count
+            # + joint['id'].size
+            # ,
+            'step1_count': len(step1_only.index),
+            'step2_count': len(step2_only.index),
+            'step3_count': len(step3_only.index),
+            'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
+            'all_steps': len(all_steps.index),
+            'email_conversion': 0,  # emails / total,
+            'completed': len(all_steps.index) / total if total > 0 else total
+            }
 
-    # Average risk calculation
-    # Use same sorts of statistivs used in eLearning course
-    # Add questionaire to appendix
-    # Stratify by ethnicity to see what demography does to outcome measures
-    # t-test and t-test between groups
+# Average risk calculation
+# Use same sorts of statistics used in eLearning course
+# Add questionnaire to appendix
+# Stratify by ethnicity to see what demography does to outcome measures
+# t-test and t-test between groups
