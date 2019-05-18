@@ -4,9 +4,8 @@
 from __future__ import print_function
 
 from os import environ
-from platform import python_version_tuple
 
-PY3 = python_version_tuple()[0] == '3'
+from glaucoma_analytics_rest_api.utils import PY3
 
 if PY3:
     import io
@@ -129,12 +128,6 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
             column
         ))
 
-    # In[12]:
-
-    event_start_iso, event_end_iso, utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(sydney).tzinfo
-
-    # In[8]:
-
     # survey_tbl.join(risk_res_tbl, on='risk_res_id')
 
     joint = pd.read_sql_query('''
@@ -152,8 +145,6 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     ''', engine)
     print('joint#:'.ljust(just), len(joint.index))
 
-    # In[9]:
-
     step1_only_sql = pd.read_sql_query('''
     SELECT *
     FROM survey_tbl s
@@ -162,8 +153,6 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                       WHERE s.risk_res_id = r.id)
     ''', engine)
     print('step1_only_sql#:'.ljust(just), len(step1_only_sql.index))
-
-    # In[10]:
 
     step1_only = survey_tbl[survey_tbl['risk_res_id'].isna()
                             & survey_tbl['behaviour_change'].isna()
@@ -180,8 +169,6 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     _s0, _s1 = len(step1_only.index), int(step1_only_sql['count'])
     assert _s0 == _s1, '{s0} != {s1}'.format(s0=_s0, s1=_s1)
     print('step1_only#:'.ljust(just), _s0)
-
-    # In[11]:
 
     step2_only = survey_tbl[survey_tbl['perceived_risk'].isna()
                             & survey_tbl['risk_res_id'].notnull()

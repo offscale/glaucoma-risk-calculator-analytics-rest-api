@@ -4,7 +4,12 @@ from bottle import response, request
 
 from glaucoma_analytics_rest_api import rest_api, __version__
 from glaucoma_analytics_rest_api.analytics import run, sydney
-from glaucoma_analytics_rest_api.utils import auth_needed
+from glaucoma_analytics_rest_api.utils import auth_needed, PY3, to_datetime_tz
+
+if PY3:
+    from urllib.parse import unquote
+else:
+    from urllib import unquote
 
 
 @rest_api.hook('after_request')
@@ -15,8 +20,8 @@ def enable_cors():
 @rest_api.route('/api/py/analytics', apply=[auth_needed])
 def analytics():
     if request.params.startDatetime and request.params.endDatetime:
-        event_start = datetime.strptime(request.params.startDatetime, "%Y-%m-%dT%H:%M:%S%z")
-        event_end = datetime.strptime(request.params.endDatetime, "%Y-%m-%dT%H:%M:%S%z")
+        event_start = to_datetime_tz(unquote(request.params.startDatetime))
+        event_end = to_datetime_tz(unquote(request.params.endDatetime))
     else:
         # Limit selection to 8AM Monday until 2:30PM Monday
         # (which corresponds with the OPSM event start & end time)
