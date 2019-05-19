@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 from sys import stderr
 
+import arrow
+from arrow.parser import ParserError
 from bottle import response, request
 
 from glaucoma_analytics_rest_api import rest_api, __version__
 from glaucoma_analytics_rest_api.analytics import run, sydney
-from glaucoma_analytics_rest_api.utils import auth_needed, PY3, to_datetime_tz
+from glaucoma_analytics_rest_api.utils import auth_needed, PY3
 
 if PY3:
     from urllib.parse import unquote
@@ -22,9 +24,9 @@ def enable_cors():
 def analytics():
     if request.params.startDatetime and request.params.endDatetime:
         try:
-            event_start = to_datetime_tz(unquote(request.params.startDatetime))
-            event_end = to_datetime_tz(unquote(request.params.endDatetime))
-        except ValueError as e:
+            event_start = arrow.get(unquote(request.params.startDatetime))
+            event_end = arrow.get(unquote(request.params.endDatetime))
+        except ParserError as e:
             response.status = 400
             return {'error': e.__class__.__name__,
                     'error_message': '{}'.format(e)}

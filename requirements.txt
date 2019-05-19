@@ -6,3 +6,4 @@ pandas
 pytz
 psycopg2
 gunicorn
+arrow
