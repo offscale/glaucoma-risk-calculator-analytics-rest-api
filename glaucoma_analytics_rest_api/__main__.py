@@ -6,4 +6,5 @@ _version = routes.__version__
 
 rest_api.run(host=environ.get('HOST', '0.0.0.0'),
              port=environ.get('PORT', 5555),
+             server=environ.get('SERVER', 'wsgiref'),
              debug=bool(environ.get('DEBUG', True)))
