@@ -6,6 +6,8 @@ from __future__ import print_function
 from datetime import datetime
 from os import environ
 
+from arrow import Arrow
+
 from glaucoma_analytics_rest_api.utils import PY3
 
 if PY3:
@@ -15,12 +17,15 @@ else:
     from contextlib import contextmanager
 
 
+    # noinspection PyCompatibility
     @contextmanager
     def capture():
         import sys
         try:
+            # noinspection PyCompatibility
             from cStringIO import StringIO
         except ImportError:
+            # noinspection PyCompatibility
             from StringIO import StringIO
         oldout, olderr = sys.stdout, sys.stderr
         out = [StringIO(), StringIO()]
@@ -47,15 +52,15 @@ import pandas as pd
 from pytz import timezone, utc
 
 
-def run(event_start, event_end):  # type: (datetime, datetime) -> dict
+def run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     """
     Runner, wraps stdout and stderr also
 
     :param event_start: start datetime
-    :type event_start: datetime
+    :type event_start: Arrow
 
     :param event_end: end datetime
-    :type event_end: datetime
+    :type event_end: Arrow
 
     :return: dictionary to show on endpoint
     :rtype: dict
@@ -76,15 +81,15 @@ def run(event_start, event_end):  # type: (datetime, datetime) -> dict
 sydney = utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(timezone('Australia/Sydney')).tzinfo
 
 
-def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
+def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     """
     Runner
 
     :param event_start: start datetime
-    :type event_start: datetime
+    :type event_start: Arrow
 
     :param event_end: end datetime
-    :type event_end: datetime
+    :type event_end: Arrow
 
     :return: dictionary to show on endpoint
     :rtype: dict
@@ -211,7 +216,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
     assert step3_only['id'].size == int(step3_only_sql['count'])
-    step3_only['id'].size
+    print("step3_only['id'].size:", step3_only['id'].size, ';')
     print('step3_only#:'.ljust(just), '{:0>3}'.format(int(step3_only_sql['count'])))
 
     number_of_risk_res_ids_sql = pd.read_sql_query('''

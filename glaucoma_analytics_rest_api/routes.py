@@ -12,8 +12,10 @@ from glaucoma_analytics_rest_api.analytics import run, sydney
 from glaucoma_analytics_rest_api.utils import auth_needed, PY3
 
 if PY3:
+    # noinspection PyCompatibility
     from urllib.parse import unquote
 else:
+    # noinspection PyCompatibility
     from urllib import unquote
 
 
@@ -38,7 +40,7 @@ def analytics():
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
     try:
-        return run(event_start, event_end)
+        return run(arrow.get(event_start), arrow.get(event_end))
     except Exception as e:
         print(e, file=stderr)
         response.status = 400

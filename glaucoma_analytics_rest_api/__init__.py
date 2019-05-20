@@ -3,7 +3,7 @@ from os import environ
 from bottle import Bottle
 from redis import Redis
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 __author__ = 'Samuel Marks <@SamuelMarks>'
 
 rest_api = Bottle(catchall=False, autojson=True)
