@@ -282,7 +282,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                              ]
     print('step3_and_2#:'.ljust(just), '{:0>3}'.format(len(step3_and_2.index)))
 
-    def cover_fn(collection: tuple) -> int:
+    def cover_fn(collection):  # type: (tuple) -> int
         return sum(map(lambda s: len(s.index), collection))
 
     step1_cover = cover_fn((step1_only, step1_and_2, step1_and_3))
