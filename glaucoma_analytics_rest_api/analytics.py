@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 
+from datetime import datetime
 from os import environ
 
 from glaucoma_analytics_rest_api.utils import PY3
@@ -30,8 +31,6 @@ else:
             sys.stdout, sys.stderr = oldout, olderr
             out[0] = out[0].getvalue()
             out[1] = out[1].getvalue()
-
-from datetime import datetime
 
 just = 20  # indentation
 

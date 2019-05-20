@@ -59,4 +59,5 @@ LANG=en_US.UTF-8
 HOME=/var/www/glaucoma/glaucoma-analytics-rest-api
 SERVER=gunicorn
 PORT=5454
+RDBMS_URI=postgresql://username:password@host:port/database
 ```

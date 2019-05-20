@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from datetime import datetime, timedelta
 from sys import stderr
 
@@ -38,8 +40,8 @@ def analytics():
     try:
         return run(event_start, event_end)
     except Exception as e:
-        response.status = 400
         print(e, file=stderr)
+        response.status = 400
         return {'error': e.__class__.__name__,
                 'error_message': '{}'.format(e)}
 
