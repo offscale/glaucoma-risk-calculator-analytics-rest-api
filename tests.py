@@ -1,8 +1,10 @@
+# coding: utf-8
+
 from unittest import TestCase, main as unittest_main
 
 from webtest import TestApp
 
-from namespace_rest_api import rest_api
+from glaucoma_analytics_rest_api import rest_api
 
 
 class TestRestApi(TestCase):

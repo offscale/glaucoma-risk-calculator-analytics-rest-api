@@ -4,7 +4,7 @@
 from __future__ import print_function
 
 from datetime import datetime
-from os import environ
+from os import environ, path
 
 from arrow import Arrow
 
@@ -113,20 +113,16 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
 
     for column in columns:
         b4_filter = len(survey_tbl.index)
-        survey_tbl = survey_tbl.loc[
-            (survey_tbl[column] > event_start)
-            & (survey_tbl[column] <= event_end)
-            ]
+        survey_tbl = survey_tbl.loc[(survey_tbl[column] > event_start.datetime)
+                                    & (survey_tbl[column] <= event_end.datetime)]
         print('Excluded {:0>3d} records using {!r} from survey_tbl'.format(
             b4_filter - len(survey_tbl.index),
             column
         ))
 
         b4_filter = len(risk_res_tbl.index)
-        risk_res_tbl = risk_res_tbl.loc[
-            (risk_res_tbl[column] > event_start)
-            & (risk_res_tbl[column] <= event_end)
-            ]
+        risk_res_tbl = risk_res_tbl.loc[(risk_res_tbl[column] > event_start.datetime)
+                                        & (risk_res_tbl[column] <= event_end.datetime)]
         print('Excluded {:0>3d} records using {!r} from risk_res_tbl'.format(
             b4_filter - len(risk_res_tbl.index),
             column
@@ -158,9 +154,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     ''', engine)
     print('step1_only_sql#:'.ljust(just), len(step1_only_sql.index))
 
-    step1_only = survey_tbl[survey_tbl['risk_res_id'].isna()
-                            & survey_tbl['behaviour_change'].isna()
-                            ]
+    step1_only = survey_tbl[survey_tbl['risk_res_id'].isna() & survey_tbl['behaviour_change'].isna()]
     step1_only_sql = pd.read_sql_query('''
     SELECT COUNT(*)
     FROM survey_tbl s
@@ -174,10 +168,10 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     assert _s0 == _s1, '{s0} != {s1}'.format(s0=_s0, s1=_s1)
     print('step1_only#:'.ljust(just), _s0)
 
-    step2_only = survey_tbl[survey_tbl['perceived_risk'].isna()
-                            & survey_tbl['risk_res_id'].notnull()
-                            & survey_tbl['behaviour_change'].isna()
-                            ]
+    step2_only = survey_tbl[(survey_tbl['perceived_risk'].isna()
+                             & survey_tbl['risk_res_id'].notnull()
+                             & survey_tbl['behaviour_change'].isna()
+                             )]
 
     step2_only = risk_res_tbl[
         ~risk_res_tbl['id'].isin(survey_tbl['risk_res_id'])
@@ -321,6 +315,20 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
           u'\u2022 {completed:.2%} completed the final step; and\n'
           u'\u2022 {email_conversion:.2%} converted (provided their emails).'.format(
     '''
+
+    '''emails = !sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v '{"email":null}|{"email":""}' | wc -l
+    # ^Ignore duplicated and null entries
+    emails = int(emails[0]) + 60  # 60 collected independently by OPSM
+    '''
+
+    emails_txt_fname = path.join(environ.get('GLAUCOMA_DATADIR', 'glaucoma-risk-calculator-datadir'), 'emails.txt')
+    if path.exists(emails_txt_fname):
+        with open(emails_txt_fname, 'rt') as f:
+            emails = len(sorted(set(filter(lambda line: line not in frozenset(('{"email":null}', '{"email":""}')),
+                                           map(lambda line: line.strip(), f.readlines())))))
+    else:
+        emails = 169
+
     return {'survey_count': total,
             # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
             # + step2_count
@@ -331,7 +339,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
             'step3_count': len(step3_only.index),
             'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
             'all_steps': len(all_steps.index),
-            'email_conversion': 0,  # emails / total,
+            'email_conversion': emails / total if total > 0 else total,
             'completed': len(all_steps.index) / total if total > 0 else total
             }
 

@@ -1,7 +1,8 @@
+# coding: utf-8
+
 from __future__ import print_function
 
 from datetime import datetime, timedelta
-from sys import stderr
 
 import arrow
 from arrow.parser import ParserError
@@ -39,6 +40,11 @@ def analytics():
         # (which corresponds with the OPSM event start & end time)
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
+
+    return run(arrow.get(event_start), arrow.get(event_end))
+
+    '''
+    
     try:
         return run(arrow.get(event_start), arrow.get(event_end))
     except Exception as e:
@@ -46,6 +52,7 @@ def analytics():
         response.status = 400
         return {'error': e.__class__.__name__,
                 'error_message': '{}'.format(e)}
+    '''
 
 
 @rest_api.route('/api')

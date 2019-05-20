@@ -1,3 +1,5 @@
+# coding: utf-8
+
 from os import environ
 
 from glaucoma_analytics_rest_api import routes, rest_api

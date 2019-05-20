@@ -1,3 +1,5 @@
+# coding: utf-8
+
 from datetime import datetime
 from platform import python_version_tuple
 

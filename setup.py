@@ -1,3 +1,5 @@
+# coding: utf-8
+
 from ast import parse
 # from distutils.sysconfig import get_python_lib
 # from functools import partial
