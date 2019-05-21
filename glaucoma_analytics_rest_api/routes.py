@@ -57,6 +57,7 @@ def analytics():
 
 @rest_api.route('/api')
 @rest_api.route('/api/status')
+@rest_api.routes('/api/py')
 def status():
     return {
         'rest_api_version': __version__,
