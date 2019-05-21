@@ -5,8 +5,8 @@ from os import environ
 from bottle import Bottle
 from redis import Redis
 
-__version__ = '0.0.8'
 __author__ = 'Samuel Marks <@SamuelMarks>'
+__version__ = '0.0.9'
 
 rest_api = Bottle(catchall=True, autojson=True)
 redis = Redis(host=environ.get('REDIS_HOST', 'localhost'),
