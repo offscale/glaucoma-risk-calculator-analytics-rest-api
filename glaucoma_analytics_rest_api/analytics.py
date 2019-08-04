@@ -113,7 +113,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
                 if 'tz_localize' not in e.message:
                     raise e
                 try:
-                    df[column] = df[column].dt.tz_localize('UTC').tz_localize(sydney)
+                    df[column] = df[column].dt.tz_localize('UTC').tz_convert(sydney)
                 except TypeError as err:
                     if not environ.get('TRAVIS'):
                         raise err
