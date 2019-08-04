@@ -5,9 +5,21 @@ python:
     - "3.6"
     - "pypy3.5"
 
+services:
+    - postgresql
+    - redis-server
+
 install:
     - pip install -r requirements.txt
     - pip install .
+
+env:
+    global:
+        - RDBMS_URI='postgres://postgres@localhost/travis_ci_test'
+
+before_script:
+    - psql -c 'create database travis_ci_test;' -U postgres
+
 
 script:
     - pip install coveralls
