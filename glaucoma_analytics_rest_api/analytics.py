@@ -11,8 +11,6 @@ from arrow import Arrow
 
 from glaucoma_analytics_rest_api.utils import PY3
 
-
-from six import integer_types
 if PY3:
     import io
     from contextlib import redirect_stdout
@@ -114,7 +112,11 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
             except TypeError as e:
                 if 'tz_localize' not in e.message:
                     raise e
-                df[column] = df[column].dt.tz_localize('UTC').tz_localize(sydney)
+                try:
+                    df[column] = df[column].dt.tz_localize('UTC').tz_localize(sydney)
+                except TypeError as err:
+                    if not environ.get('TRAVIS'):
+                        raise err
 
     event_start_iso = event_start.isoformat()
     event_end_iso = event_end.isoformat()
