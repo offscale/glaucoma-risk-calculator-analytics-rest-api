@@ -1,6 +1,8 @@
 # coding: utf-8
 
+from __future__ import print_function
 from datetime import datetime, timedelta
+from pprint import PrettyPrinter
 from unittest import TestCase, main as unittest_main
 
 import arrow
@@ -26,6 +28,9 @@ class TestRestApi(TestCase):
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
         run_output = run(arrow.get(event_start), arrow.get(event_end))
+        print('<run-output>')
+        PrettyPrinter(indent=4).pprint(run_output)
+        print('</run-output>')
         self.assertEqual(
             run_output,
             {
