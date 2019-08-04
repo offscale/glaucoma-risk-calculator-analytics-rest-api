@@ -10,5 +10,8 @@ install:
     - pip install .
 
 script:
+    - pip install coveralls
     - coverage run --source='glaucoma_analytics_rest_api' setup.py test
-    - coveralls
+
+after_success:
+  - coveralls
