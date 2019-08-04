@@ -23,6 +23,8 @@ env:
         - RDBMS_URI='postgres://postgres@localhost/travis_ci_test'
 
 before_script:
+    - echo 'Etc/UTC' | sudo tee /etc/timezone
+    - sudo dpkg-reconfigure --frontend noninteractive tzdata
     - psql -c 'create database travis_ci_test;' -U postgres
     # Create tables
     - nvm install lts/*

@@ -109,7 +109,12 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
 
     for df in (survey_tbl, risk_res_tbl):
         for column in columns:
-            df[column] = df[column].dt.tz_convert(sydney)
+            try:
+                df[column] = df[column].dt.tz_convert(sydney)
+            except TypeError as e:
+                if 'tz_localize' not in e.message:
+                    raise e
+                df[column] = df[column].dt.tz_localize('UTC').tz_localize(sydney)
 
     event_start_iso = event_start.isoformat()
     event_end_iso = event_end.isoformat()
