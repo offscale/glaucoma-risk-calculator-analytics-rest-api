@@ -3,13 +3,16 @@
 
 from __future__ import print_function
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from os import environ, path
 
+import arrow
 from arrow import Arrow
 
 from glaucoma_analytics_rest_api.utils import PY3
 
+
+from six import integer_types
 if PY3:
     import io
     from contextlib import redirect_stdout
@@ -129,6 +132,9 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
         ))
 
     # survey_tbl.join(risk_res_tbl, on='risk_res_id')
+    '''
+    SELECT r.client_risk FROM risk_res_tbl r;
+    '''
 
     joint = pd.read_sql_query('''
     SELECT r.age, r.client_risk, r.gender
@@ -179,15 +185,16 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     step2_only_sql = pd.read_sql_query('''
     SELECT COUNT(*)
     FROM risk_res_tbl r
-    WHERE
-           r."createdAt" > {event_start!r}
+    WHERE 
+           r."createdAt" >= {event_start!r}
            AND r."updatedAt" <= {event_end!r}
            AND r.id IN ( SELECT id
-                         FROM risk_res_tbl
+                         FROM risk_res_tbl rr
                          EXCEPT
                          SELECT risk_res_id
-                         FROM survey_tbl )
-    ;
+                         FROM survey_tbl s
+                         WHERE s."createdAt" > {event_start!r}
+                         AND s."updatedAt" <= {event_end!r});
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
     _s0, _s1 = len(step2_only.index), int(step2_only_sql['count'])
@@ -343,8 +350,14 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
             'completed': len(all_steps.index) / total if total > 0 else total
             }
 
+
 # Average risk calculation
 # Use same sorts of statistics used in eLearning course
 # Add questionnaire to appendix
 # Stratify by ethnicity to see what demography does to outcome measures
 # t-test and t-test between groups
+
+if __name__ == '__main__':
+    event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
+    event_end = event_start + timedelta(hours=6, minutes=60)
+    run_output = run(arrow.get(event_start), arrow.get(event_end))
