@@ -25,7 +25,7 @@ env:
 before_script:
     - psql -c 'create database travis_ci_test;' -U postgres
     # Create tables
-    - nvm lts
+    - nvm install lts/*
     - npm config set spin false
     - npm i -g npm
     - npm i -g bunyan mocha node-gyp tslint typings typescript
