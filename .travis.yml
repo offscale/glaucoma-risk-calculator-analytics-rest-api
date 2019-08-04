@@ -5,6 +5,11 @@ python:
     - "3.6"
     - "pypy3.5"
 
+addons:
+    apt:
+        packages:
+            - gyp
+
 services:
     - postgresql
     - redis-server
@@ -19,11 +24,25 @@ env:
 
 before_script:
     - psql -c 'create database travis_ci_test;' -U postgres
-
+    # Create tables
+    - nvm lts
+    - npm config set spin false
+    - npm i -g npm
+    - npm i -g bunyan mocha node-gyp tslint typings typescript
+    - git clone https://github.com/glaucoma/glaucoma-risk-calculator-rest-api
+    - pushd glaucoma-risk-calculator-rest-api
+    - typings i
+    - npm ci
+    - "sed -i -e 's/_length: number;/_length!: number;/g' node_modules/summary/summary.ts"
+    - 'perl -pe "s|\Q_cache_quartiles: {[q: number]: number;};\E|_cache_quartiles!: {[q: number]: number;};|g" -i node_modules/summary/summary.ts'
+    - tsc
+    - npm test
+    - popd
+    - rm -rf glaucoma-risk-calculator-rest-api
 
 script:
     - pip install coveralls
     - coverage run --source='glaucoma_analytics_rest_api' setup.py test
 
 after_success:
-  - coveralls
+    - coveralls
