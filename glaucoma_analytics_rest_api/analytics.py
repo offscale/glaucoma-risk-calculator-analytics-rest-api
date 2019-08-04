@@ -98,10 +98,10 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     engine = create_engine(environ['RDBMS_URI'])
 
     survey_tbl = pd.read_sql_table('survey_tbl', engine)
-    print('survey_tbl#:'.ljust(just), len(survey_tbl.index))
+    print('survey_tbl#:'.ljust(just), '{:0>3}'.format(len(survey_tbl.index)))
 
     risk_res_tbl = pd.read_sql_table('risk_res_tbl', engine)
-    print('risk_res_tbl#:'.ljust(just), len(risk_res_tbl.index))
+    print('risk_res_tbl#:'.ljust(just), '{:0>3}'.format(len(risk_res_tbl.index)))
 
     columns = 'createdAt', 'updatedAt'
 
@@ -156,7 +156,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     FULL JOIN risk_res_tbl r
     ON s.risk_res_id = r.id;
     ''', engine)
-    print('joint#:'.ljust(just), len(joint.index))
+    print('joint#:'.ljust(just), '{:0>3}'.format(len(joint.index)))
 
     step1_only_sql = pd.read_sql_query('''
     SELECT *
@@ -165,7 +165,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
                       FROM risk_res_tbl r
                       WHERE s.risk_res_id = r.id)
     ''', engine)
-    print('step1_only_sql#:'.ljust(just), len(step1_only_sql.index))
+    print('step1_only_sql#:'.ljust(just), '{:0>3}'.format(len(step1_only_sql.index)))
 
     step1_only = survey_tbl[survey_tbl['risk_res_id'].isna() & survey_tbl['behaviour_change'].isna()]
     step1_only_sql = pd.read_sql_query('''
@@ -179,7 +179,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
                event_end=event_end_iso), engine)
     _s0, _s1 = len(step1_only.index), int(step1_only_sql['count'])
     assert _s0 == _s1, '{s0} != {s1}'.format(s0=_s0, s1=_s1)
-    print('step1_only#:'.ljust(just), _s0)
+    print('step1_only#:'.ljust(just), '{:0>3}'.format(_s0))
 
     step2_only = survey_tbl[(survey_tbl['perceived_risk'].isna()
                              & survey_tbl['risk_res_id'].notnull()
@@ -224,7 +224,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
     assert step3_only['id'].size == int(step3_only_sql['count'])
-    print("step3_only['id'].size:", step3_only['id'].size, ';')
+    print("step3_only.id.size#:", '{:0>3}'.format(step3_only['id'].size))
     print('step3_only#:'.ljust(just), '{:0>3}'.format(int(step3_only_sql['count'])))
 
     number_of_risk_res_ids_sql = pd.read_sql_query('''
@@ -255,15 +255,15 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
     assert int(number_of_risk_res_ids_sql['count']
                ) == number_of_risk_res_ids == int(
         number_of_unique_risk_res_ids_sql['count'])
-    print('number_of_risk_res_ids#:'.ljust(just), number_of_risk_res_ids)
+    print('risk_res_ids#:'.ljust(just), '{:0>3}'.format(number_of_risk_res_ids))
 
-    print('event_start_iso', event_start_iso, 'event_end_iso', event_end_iso)
+    print('event_start_iso:    ', event_start_iso, '\nevent_end_iso:      ', event_end_iso)
 
     step1_and_2 = survey_tbl[survey_tbl['perceived_risk'].notnull()
                              & survey_tbl['risk_res_id'].notnull()
                              & survey_tbl['behaviour_change'].isna()
                              ]
-    print('step1_and_2#:'.ljust(just), len(step1_and_2.index))
+    print('step1_and_2#:'.ljust(just), '{:0>3}'.format(len(step1_and_2.index)))
 
     step1_and_3 = survey_tbl[survey_tbl['perceived_risk'].notnull()
                              & survey_tbl['risk_res_id'].isna()
@@ -275,13 +275,13 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
                              & survey_tbl['risk_res_id'].notnull()
                              & survey_tbl['behaviour_change'].isna()
                              ]
-    print('step2_and_1#:'.ljust(just), len(step2_and_1.index))
+    print('step2_and_1#:'.ljust(just), '{:0>3}'.format(len(step2_and_1.index)))
 
     step2_and_3 = survey_tbl[survey_tbl['perceived_risk'].notnull()
                              & survey_tbl['risk_res_id'].notnull()
                              & survey_tbl['behaviour_change'].notnull()
                              ]
-    print('step2_and_3#:'.ljust(just), len(step2_and_3.index))
+    print('step2_and_3#:'.ljust(just), '{:0>3}'.format(len(step2_and_3.index)))
 
     step3_and_1 = survey_tbl[survey_tbl['perceived_risk'].isna()
                              & survey_tbl['risk_res_id'].notnull()
