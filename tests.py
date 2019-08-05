@@ -33,6 +33,43 @@ class TestRestApi(TestCase):
 
         PrettyPrinter(indent=4).pprint(run_output)
 
+        normal_output = {
+            '_out': 'survey_tbl#:         029\n'
+                    'risk_res_tbl#:       017\n'
+                    "Excluded 022 records using 'createdAt' from survey_tbl\n"
+                    "Excluded 011 records using 'createdAt' from risk_res_tbl\n"
+                    "Excluded 000 records using 'updatedAt' from survey_tbl\n"
+                    "Excluded 000 records using 'updatedAt' from risk_res_tbl\n"
+                    'joint#:              034\n'
+                    'step1_only_sql#:     017\n'
+                    'step1_only#:         001\n'
+                    'step2_only#:         000\n'
+                    'step3_only.id.size#: 000\n'
+                    'step3_only#:         000\n'
+                    'risk_res_ids#:       006\n'
+                    'event_start_iso:     2019-03-11T08:00:00+11:00 \n'
+                    'event_end_iso:       2019-03-11T15:00:00+11:00\n'
+                    'step1_and_2#:        003\n'
+                    'step1_and_3#:        000\n'
+                    'step2_and_1#:        003\n'
+                    'step2_and_3#:        003\n'
+                    'step3_and_1#:        000\n'
+                    'step3_and_2#:        000\n',
+            'all_steps': 3,
+            'completed': 0.3,
+            'email_conversion': 16.9,
+            'some_combination': 6,
+            'step1_count': 1,
+            'step2_count': 0,
+            'step3_count': 0,
+            'survey_count': 10
+        }
+
+        self.assertSetEqual(set(normal_output.keys()), set(run_output.keys()))
+
+        if environ.get('TRAVIS'):
+            return
+
         self.assertEqual(
             run_output,
             {'_out': 'survey_tbl#:         000\n'
@@ -64,36 +101,6 @@ class TestRestApi(TestCase):
              'step2_count': 0,
              'step3_count': 0,
              'survey_count': 10}
-            if environ.get('TRAVIS')
-            else {'_out': 'survey_tbl#:         029\n'
-                          'risk_res_tbl#:       017\n'
-                          "Excluded 022 records using 'createdAt' from survey_tbl\n"
-                          "Excluded 011 records using 'createdAt' from risk_res_tbl\n"
-                          "Excluded 000 records using 'updatedAt' from survey_tbl\n"
-                          "Excluded 000 records using 'updatedAt' from risk_res_tbl\n"
-                          'joint#:              034\n'
-                          'step1_only_sql#:     017\n'
-                          'step1_only#:         001\n'
-                          'step2_only#:         000\n'
-                          'step3_only.id.size#: 000\n'
-                          'step3_only#:         000\n'
-                          'risk_res_ids#:       006\n'
-                          'event_start_iso:     2019-03-11T08:00:00+11:00 \n'
-                          'event_end_iso:       2019-03-11T15:00:00+11:00\n'
-                          'step1_and_2#:        003\n'
-                          'step1_and_3#:        000\n'
-                          'step2_and_1#:        003\n'
-                          'step2_and_3#:        003\n'
-                          'step3_and_1#:        000\n'
-                          'step3_and_2#:        000\n',
-                  'all_steps': 3,
-                  'completed': 0.3,
-                  'email_conversion': 16.9,
-                  'some_combination': 6,
-                  'step1_count': 1,
-                  'step2_count': 0,
-                  'step3_count': 0,
-                  'survey_count': 10}
         )
 
 
