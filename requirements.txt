@@ -2,6 +2,7 @@ bottle
 webtest
 redis
 sqlalchemy
+cython
 pandas
 pytz
 psycopg2
