@@ -110,7 +110,7 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
             try:
                 df[column] = df[column].dt.tz_convert(sydney)
             except TypeError as e:
-                if 'tz_localize' not in e.message:
+                if 'tz_localize' not in e.args[0]:
                     raise e
                 try:
                     df[column] = df[column].dt.tz_localize('UTC').tz_convert(sydney)
