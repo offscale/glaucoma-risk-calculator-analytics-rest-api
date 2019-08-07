@@ -18,7 +18,7 @@ if __name__ == '__main__':
     package_name = 'glaucoma_analytics_rest_api'
 
     with open(path.join(package_name, '__init__.py')) as f:
-        __author__, __version__ = imap(
+        __version__, __author__ = imap(
             lambda buf: next(imap(lambda e: e.value.s, parse(buf).body)),
             ifilter(lambda line: line.startswith('__version__') or line.startswith('__author__'), f)
         )
