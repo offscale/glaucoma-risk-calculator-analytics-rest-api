@@ -3,7 +3,7 @@ webtest
 redis
 sqlalchemy
 cython
-pandas
+pandas==0.24.2
 pytz
 psycopg2
 gunicorn
