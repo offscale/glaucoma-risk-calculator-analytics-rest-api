@@ -220,7 +220,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
            AND s.perceived_risk IS NULL;
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
-    assert step3_only['id'].size == int(step3_only_sql['count'])
+    _fst, _snd = step3_only['id'].size, int(step3_only_sql['count'])
+    assert _fst == _snd, 'Expected {} == {}'.format(_fst, _snd)
     print("step3_only.id.size#:", '{:0>3}'.format(step3_only['id'].size))
     print('step3_only#:'.ljust(just), '{:0>3}'.format(int(step3_only_sql['count'])))
 
@@ -249,9 +250,9 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         survey_tbl['risk_res_id'].notnull()
     ]['risk_res_id'].size
 
-    assert int(number_of_risk_res_ids_sql['count']
-               ) == number_of_risk_res_ids == int(
-        number_of_unique_risk_res_ids_sql['count'])
+    _fst, _snd, _thd = (int(number_of_risk_res_ids_sql['count']), number_of_risk_res_ids,
+                        int(number_of_unique_risk_res_ids_sql['count']))
+    assert _fst == _snd == _thd, 'Expected {} == {} == {}'.format(_fst, _snd, _thd)
     print('risk_res_ids#:'.ljust(just), '{:0>3}'.format(number_of_risk_res_ids))
 
     print('event_start_iso:    ', event_start_iso, '\nevent_end_iso:      ', event_end_iso)
