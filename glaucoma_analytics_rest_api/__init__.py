@@ -6,7 +6,7 @@ from bottle import Bottle
 from redis import Redis
 
 __author__ = 'Samuel Marks <@SamuelMarks>'
-__version__ = '0.0.11'
+__version__ = '0.0.12'
 
 rest_api = Bottle(catchall=True, autojson=True)
 redis = Redis(host=environ.get('REDIS_HOST', 'localhost'),

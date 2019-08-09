@@ -170,8 +170,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     FROM survey_tbl s
     WHERE s.risk_res_id IS NULL
           AND s.behaviour_change IS NULL
-          AND s."createdAt" > {event_start!r}
-          AND s."updatedAt" <= {event_end!r};
+          AND s."createdAt" BETWEEN {event_start!r} AND {event_end!r};
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
     _s0, _s1 = len(step1_only.index), int(step1_only_sql['count'])
@@ -190,15 +189,13 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     SELECT COUNT(*)
     FROM risk_res_tbl r
     WHERE 
-           r."createdAt" >= {event_start!r}
-           AND r."updatedAt" <= {event_end!r}
+           r."createdAt" BETWEEN {event_start!r} AND {event_end!r}
            AND r.id IN ( SELECT id
                          FROM risk_res_tbl rr
                          EXCEPT
                          SELECT risk_res_id
                          FROM survey_tbl s
-                         WHERE s."createdAt" > {event_start!r}
-                         AND s."updatedAt" <= {event_end!r});
+                         WHERE s."createdAt" BETWEEN {event_start!r} AND {event_end!r});
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
     _s0, _s1 = len(step2_only.index), int(step2_only_sql['count'])
@@ -214,8 +211,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     SELECT COUNT(*)
     FROM survey_tbl s
     WHERE
-           s."createdAt" > {event_start!r}
-           AND s."updatedAt" <= {event_end!r}
+           s."createdAt" BETWEEN {event_start!r} AND {event_end!r}
            AND s.risk_res_id IS NULL
            AND s.perceived_risk IS NULL;
     '''.format(event_start=event_start_iso,
@@ -229,9 +225,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     SELECT COUNT(risk_res_id)
     FROM survey_tbl s
     WHERE
-           s."createdAt" > {event_start!r}
-           AND s."updatedAt" <= {event_end!r}
-           AND s.risk_res_id IS NOT NULL;
+          s."createdAt" BETWEEN {event_start!r} AND {event_end!r}
+            AND s.risk_res_id IS NOT NULL;
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
 
@@ -240,9 +235,9 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     FROM (SELECT DISTINCT risk_res_id
           FROM survey_tbl s
           WHERE
-                 s."createdAt" > {event_start!r}
-                 AND s."updatedAt" <= {event_end!r}
-                 AND s.risk_res_id IS NOT NULL) AS C;
+              s."createdAt" BETWEEN {event_start!r} AND {event_end!r}
+                AND s.risk_res_id IS NOT NULL;
+          ) AS C;
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
 
@@ -339,8 +334,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     emails_txt_fname = path.join(environ.get('GLAUCOMA_DATADIR', 'glaucoma-risk-calculator-datadir'), 'emails.txt')
     if path.exists(emails_txt_fname):
         with open(emails_txt_fname, 'rt') as f:
-            emails = len(sorted(set(filter(lambda line: line not in frozenset(('{"email":null}', '{"email":""}')),
-                                           map(lambda line: line.strip(), f.readlines())))))
+            emails = len(frozenset(filter(lambda line: line not in frozenset(('{"email":null}', '{"email":""}')),
+                                          map(lambda line: line.strip(), f.readlines()))))
     else:
         emails = 169
 
