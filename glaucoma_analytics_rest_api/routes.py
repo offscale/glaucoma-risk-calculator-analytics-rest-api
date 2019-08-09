@@ -42,17 +42,6 @@ def analytics():
 
     return run(event_start, event_end)
 
-    '''
-    
-    try:
-        return run(arrow.get(event_start), arrow.get(event_end))
-    except Exception as e:
-        print(e, file=stderr)
-        response.status = 400
-        return {'error': e.__class__.__name__,
-                'error_message': '{}'.format(e)}
-    '''
-
 
 @rest_api.route('/api')
 @rest_api.route('/api/status')

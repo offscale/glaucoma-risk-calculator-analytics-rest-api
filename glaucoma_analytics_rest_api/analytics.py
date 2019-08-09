@@ -15,7 +15,6 @@ else:
     from contextlib import contextmanager
 
 
-    # noinspection PyCompatibility
     @contextmanager
     def capture():
         import sys
@@ -236,7 +235,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
           FROM survey_tbl s
           WHERE
               s."createdAt" BETWEEN {event_start!r} AND {event_end!r}
-                AND s.risk_res_id IS NOT NULL;
+                AND s.risk_res_id IS NOT NULL
           ) AS C;
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
@@ -349,7 +348,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
             'step3_count': len(step3_only.index),
             'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
             'all_steps': len(all_steps.index),
-            'email_conversion': emails / total if total > 0 else total,
+            'email_conversion': emails / total * 100 if total > 0 else total,
             'completed': len(all_steps.index) / total if total > 0 else total
             }
 
@@ -361,6 +360,6 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
 # t-test and t-test between groups
 
 if __name__ == '__main__':
-    event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
-    event_end = event_start + timedelta(hours=6, minutes=60)
-    run_output = run(event_start, event_end)
+    event_start_at = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
+    event_end_at = event_start_at + timedelta(hours=6, minutes=60)
+    run_output = run(event_start_at, event_end_at)
