@@ -7,7 +7,6 @@ from os import environ
 from pprint import PrettyPrinter
 from unittest import TestCase, main as unittest_main
 
-import arrow
 from webtest import TestApp
 
 from glaucoma_analytics_rest_api import rest_api
@@ -29,7 +28,7 @@ class TestRestApi(TestCase):
     def test_run(self):
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
-        run_output = run(arrow.get(event_start), arrow.get(event_end))
+        run_output = run(event_start, event_end)
 
         PrettyPrinter(indent=4).pprint(run_output)
 

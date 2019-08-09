@@ -6,9 +6,6 @@ from __future__ import print_function
 from datetime import datetime, timedelta
 from os import environ, path
 
-import arrow
-from arrow import Arrow
-
 from glaucoma_analytics_rest_api.utils import PY3
 
 if PY3:
@@ -53,15 +50,15 @@ import pandas as pd
 from pytz import timezone, utc
 
 
-def run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
+def run(event_start, event_end):  # type: (datetime, datetime) -> dict
     """
     Runner, wraps stdout and stderr also
 
     :param event_start: start datetime
-    :type event_start: Arrow
+    :type event_start: datetime
 
     :param event_end: end datetime
-    :type event_end: Arrow
+    :type event_end: datetime
 
     :return: dictionary to show on endpoint
     :rtype: dict
@@ -82,15 +79,15 @@ def run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
 sydney = utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(timezone('Australia/Sydney')).tzinfo
 
 
-def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
+def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     """
     Runner
 
     :param event_start: start datetime
-    :type event_start: Arrow
+    :type event_start: datetime
 
     :param event_end: end datetime
-    :type event_end: Arrow
+    :type event_end: datetime
 
     :return: dictionary to show on endpoint
     :rtype: dict
@@ -123,16 +120,16 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
 
     for column in columns:
         b4_filter = len(survey_tbl.index)
-        survey_tbl = survey_tbl.loc[(survey_tbl[column] > event_start.datetime)
-                                    & (survey_tbl[column] <= event_end.datetime)]
+        survey_tbl = survey_tbl.loc[(survey_tbl[column] > event_start)
+                                    & (survey_tbl[column] <= event_end)]
         print('Excluded {:0>3d} records using {!r} from survey_tbl'.format(
             b4_filter - len(survey_tbl.index),
             column
         ))
 
         b4_filter = len(risk_res_tbl.index)
-        risk_res_tbl = risk_res_tbl.loc[(risk_res_tbl[column] > event_start.datetime)
-                                        & (risk_res_tbl[column] <= event_end.datetime)]
+        risk_res_tbl = risk_res_tbl.loc[(risk_res_tbl[column] > event_start)
+                                        & (risk_res_tbl[column] <= event_end)]
         print('Excluded {:0>3d} records using {!r} from risk_res_tbl'.format(
             b4_filter - len(risk_res_tbl.index),
             column
@@ -367,4 +364,4 @@ def _run(event_start, event_end):  # type: (Arrow, Arrow) -> dict
 if __name__ == '__main__':
     event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
     event_end = event_start + timedelta(hours=6, minutes=60)
-    run_output = run(arrow.get(event_start), arrow.get(event_end))
+    run_output = run(event_start, event_end)

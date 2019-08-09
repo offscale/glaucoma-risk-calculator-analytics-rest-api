@@ -4,9 +4,8 @@ from __future__ import print_function
 
 from datetime import datetime, timedelta
 
-import arrow
-from arrow.parser import ParserError
 from bottle import response, request
+from dateutil.parser import parse
 
 from glaucoma_analytics_rest_api import rest_api, __version__
 from glaucoma_analytics_rest_api.analytics import run, sydney
@@ -29,9 +28,9 @@ def enable_cors():
 def analytics():
     if request.params.startDatetime and request.params.endDatetime:
         try:
-            event_start = arrow.get(unquote(request.params.startDatetime))
-            event_end = arrow.get(unquote(request.params.endDatetime))
-        except ParserError as e:
+            event_start = parse(unquote(request.params.startDatetime))
+            event_end = parse(unquote(request.params.endDatetime))
+        except ValueError as e:
             response.status = 400
             return {'error': e.__class__.__name__,
                     'error_message': '{}'.format(e)}
@@ -41,7 +40,7 @@ def analytics():
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
 
-    return run(arrow.get(event_start), arrow.get(event_end))
+    return run(event_start, event_end)
 
     '''
     
