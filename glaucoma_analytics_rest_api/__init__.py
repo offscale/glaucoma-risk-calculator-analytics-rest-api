@@ -8,6 +8,8 @@ from redis import Redis
 __author__ = 'Samuel Marks <@SamuelMarks>'
 __version__ = '0.0.12'
 
+environ.setdefault('RDBMS_URI', environ['RDBMS_URI'].replace('postgres:', 'postgresql:'))
+
 rest_api = Bottle(catchall=True, autojson=True)
 redis = Redis(host=environ.get('REDIS_HOST', 'localhost'),
               port=int(environ.get('REDIS_PORT', 6379)),
