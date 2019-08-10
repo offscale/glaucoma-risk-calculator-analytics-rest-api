@@ -357,7 +357,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
             'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
             'all_steps': all_steps_count,
             'email_conversion': email_conversion,
-            'completed': completed
+            'completed': completed,
+            'emails': emails
             }
 
 
