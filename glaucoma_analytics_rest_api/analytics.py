@@ -341,7 +341,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         emails = 169
 
     if total > 0:
-        email_conversion = emails / total
+        email_conversion = emails / total * 100
         completed = all_steps_count / total
     else:
         email_conversion = completed = 0
