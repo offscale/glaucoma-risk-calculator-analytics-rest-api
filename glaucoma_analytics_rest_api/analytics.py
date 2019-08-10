@@ -308,7 +308,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
 
     all_or_one = cover_fn((step1_only, step2_only, step3_only, all_steps))
 
-    total = all_or_one + cover_fn((step1_and_2, step1_and_3, step2_and_3))
+    total = float(all_or_one + cover_fn((step1_and_2, step1_and_3, step2_and_3)))
 
     merged = survey_tbl.merge(risk_res_tbl,
                               left_on='risk_res_id',
@@ -341,8 +341,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         emails = 169
 
     if total > 0:
-        email_conversion = emails / total * 100
-        completed = all_steps_count / total * 100
+        email_conversion = emails / total
+        completed = all_steps_count / total
     else:
         email_conversion = completed = 0
 
