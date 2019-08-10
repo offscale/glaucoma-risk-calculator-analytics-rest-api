@@ -172,9 +172,9 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
           AND s."createdAt" BETWEEN {event_start!r} AND {event_end!r};
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
-    _s0, _s1 = len(step1_only.index), int(step1_only_sql['count'])
-    assert _s0 == _s1, '{s0} != {s1}'.format(s0=_s0, s1=_s1)
-    print('step1_only#:'.ljust(just), '{:0>3}'.format(_s0))
+    step1_only_count, _s1 = len(step1_only.index), int(step1_only_sql['count'])
+    assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
+    print('step1_only#:'.ljust(just), '{:0>3}'.format(step1_only_count))
 
     step2_only = survey_tbl[(survey_tbl['perceived_risk'].isna()
                              & survey_tbl['risk_res_id'].notnull()
@@ -197,10 +197,10 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                          WHERE s."createdAt" BETWEEN {event_start!r} AND {event_end!r});
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
-    _s0, _s1 = len(step2_only.index), int(step2_only_sql['count'])
+    step2_only_count, _s1 = len(step2_only.index), int(step2_only_sql['count'])
 
-    # assert _s0 == _s1, '{s0} != {s1}'.format(s0=_s0, s1=_s1)
-    print('step2_only#:'.ljust(just), '{:0>3}'.format(_s0))
+    # assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
+    print('step2_only#:'.ljust(just), '{:0>3}'.format(step2_only_count))
 
     step3_only = survey_tbl[survey_tbl['perceived_risk'].isna()
                             & survey_tbl['risk_res_id'].isna()
@@ -215,8 +215,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
            AND s.perceived_risk IS NULL;
     '''.format(event_start=event_start_iso,
                event_end=event_end_iso), engine)
-    _fst, _snd = step3_only['id'].size, int(step3_only_sql['count'])
-    assert _fst == _snd, 'Expected {} == {}'.format(_fst, _snd)
+    step3_only_count, _snd = len(step3_only['id'].index), int(step3_only_sql['count'])
+    assert step3_only_count == _snd, 'Expected {} == {}'.format(step3_only_count, _snd)
     print("step3_only.id.size#:", '{:0>3}'.format(step3_only['id'].size))
     print('step3_only#:'.ljust(just), '{:0>3}'.format(int(step3_only_sql['count'])))
 
@@ -303,6 +303,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                            & survey_tbl['behaviour_change'].notnull()
                            & survey_tbl['risk_res_id'].notnull()
                            ]
+    all_steps_count = len(all_steps.index)
 
     all_or_one = cover_fn((step1_only, step2_only, step3_only, all_steps))
 
@@ -343,13 +344,13 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
             # + step2_count
             # + joint['id'].size
             # ,
-            'step1_count': len(step1_only.index),
-            'step2_count': len(step2_only.index),
-            'step3_count': len(step3_only.index),
+            'step1_count': step1_only_count,
+            'step2_count': step2_only_count,
+            'step3_count': step3_only_count,
             'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
-            'all_steps': len(all_steps.index),
+            'all_steps': all_steps_count,
             'email_conversion': emails / total * 100 if total > 0 else total,
-            'completed': len(all_steps.index) / total if total > 0 else total
+            'completed': all_steps_count / total if total > 0 else total
             }
 
 
