@@ -2,7 +2,7 @@ glaucoma-analytics-rest-api
 ===========================
 [![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Python version](https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7-blue)
-![Python implementation](https://camo.githubusercontent.com/600d8a311f7cc4c9a61ea4d1baec40c2e304c067/68747470733a2f2f696d672e736869656c64732e696f2f707970692f696d706c656d656e746174696f6e2f636f766572616c6c732e7376673f7374796c653d666c61742d737175617265)
+![Python implementation](https://img.shields.io/badge/implementation-cpython-blue)
 [![Build Status](https://travis-ci.org/glaucoma/glaucoma-analytics-rest-api.svg?branch=master)](https://travis-ci.org/glaucoma/glaucoma-analytics-rest-api)
 [![Coverage Status](https://coveralls.io/repos/github/glaucoma/glaucoma-analytics-rest-api/badge.svg)](https://coveralls.io/github/glaucoma/glaucoma-analytics-rest-api)
 
