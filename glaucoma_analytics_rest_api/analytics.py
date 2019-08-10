@@ -94,10 +94,12 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     engine = create_engine(environ['RDBMS_URI'])
 
     survey_tbl = pd.read_sql_table('survey_tbl', engine)
-    print('survey_tbl#:'.ljust(just), '{:0>3}'.format(len(survey_tbl.index)))
+    survey_tbl_count = len(survey_tbl.index)
+    print('survey_tbl#:'.ljust(just), '{:0>3}'.format(survey_tbl_count))
 
     risk_res_tbl = pd.read_sql_table('risk_res_tbl', engine)
-    print('risk_res_tbl#:'.ljust(just), '{:0>3}'.format(len(risk_res_tbl.index)))
+    risk_res_tbl_count = len(risk_res_tbl.index)
+    print('risk_res_tbl#:'.ljust(just), '{:0>3}'.format(risk_res_tbl_count))
 
     columns = 'createdAt', 'updatedAt'
 
@@ -217,8 +219,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                event_end=event_end_iso), engine)
     step3_only_count, _snd = len(step3_only['id'].index), int(step3_only_sql['count'])
     assert step3_only_count == _snd, 'Expected {} == {}'.format(step3_only_count, _snd)
-    print("step3_only.id.size#:", '{:0>3}'.format(step3_only['id'].size))
-    print('step3_only#:'.ljust(just), '{:0>3}'.format(int(step3_only_sql['count'])))
+    print('step3_only#:'.ljust(just), '{:0>3}'.format(step3_only_count))
 
     number_of_risk_res_ids_sql = pd.read_sql_query('''
     SELECT COUNT(risk_res_id)
@@ -339,6 +340,12 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     else:
         emails = 169
 
+    if total > 0:
+        email_conversion = emails / total * 100
+        completed = all_steps_count / total * 100
+    else:
+        email_conversion = completed = 0
+
     return {'survey_count': total,
             # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
             # + step2_count
@@ -349,8 +356,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
             'step3_count': step3_only_count,
             'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
             'all_steps': all_steps_count,
-            'email_conversion': emails / total * 100 if total > 0 else total,
-            'completed': all_steps_count / total if total > 0 else total
+            'email_conversion': email_conversion,
+            'completed': completed
             }
 
 
