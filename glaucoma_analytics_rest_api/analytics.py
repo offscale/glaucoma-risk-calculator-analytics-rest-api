@@ -345,15 +345,21 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
 
     join_for_pred_unique_cols = {
-        column: tuple(joint_for_pred[column].unique())
+        column: {
+            col: None for col in joint_for_pred[column].unique()
+        }
         for column in ('client_risk_mag', 'perceived_risk_mag', 'behaviour_change')
     }
 
     for column, unique_values in iteritems(join_for_pred_unique_cols):
         # if column in frozenset(('client_risk_mag', 'perceived_risk_mag')):
         for unique_value in unique_values:
+            join_for_pred_unique_cols[column][unique_value] = int(
+                joint_for_pred[(joint_for_pred[column] == unique_value)].size
+            )
+
             print('{}::{}:'.format(column, unique_value).ljust(just + 13),
-                  joint_for_pred[(joint_for_pred[column] == unique_value)].size)
+                  join_for_pred_unique_cols[column][unique_value])
 
     # joint_for_pred[joint_for_pred[''] == '']
 
@@ -402,7 +408,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         'all_steps': all_steps_count,
         'email_conversion': email_conversion,
         'completed': completed,
-        'emails': emails
+        'emails': emails,
+        'join_for_pred_unique_cols': join_for_pred_unique_cols
     }
 
 
