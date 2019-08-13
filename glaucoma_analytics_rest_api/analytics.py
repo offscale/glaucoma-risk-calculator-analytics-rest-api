@@ -6,6 +6,8 @@ from __future__ import print_function
 from datetime import datetime, timedelta
 from os import environ, path
 
+from six import iteritems
+
 from glaucoma_analytics_rest_api.utils import PY3
 
 if PY3:
@@ -123,7 +125,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         b4_filter = len(survey_tbl.index)
         survey_tbl = survey_tbl.loc[(survey_tbl[column] > event_start)
                                     & (survey_tbl[column] <= event_end)]
-        print('Excluded {:0>3d} records using {!r} from survey_tbl'.format(
+        print('survey_tbl:'.ljust(just), '{:0>3d} (excluded using {!r})'.format(
             b4_filter - len(survey_tbl.index),
             column
         ))
@@ -131,28 +133,26 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         b4_filter = len(risk_res_tbl.index)
         risk_res_tbl = risk_res_tbl.loc[(risk_res_tbl[column] > event_start)
                                         & (risk_res_tbl[column] <= event_end)]
-        print('Excluded {:0>3d} records using {!r} from risk_res_tbl'.format(
+        print('risk_res_tbl:'.ljust(just), '{:0>3d} (excluded using {!r})'.format(
             b4_filter - len(risk_res_tbl.index),
             column
         ))
 
     # survey_tbl.join(risk_res_tbl, on='risk_res_id')
     '''
-    SELECT r.client_risk FROM risk_res_tbl r;
+    SELECT r.client_risk
+    FROM risk_res_tbl r;
     '''
 
     joint = pd.read_sql_query('''
-    SELECT r.age, r.client_risk, r.gender
-         , r.ethnicity, r.other_info, r.email
-         , r.sibling, r.parent, r.study
-         , r.myopia, r.diabetes, r.id AS risk_id
-         , r."createdAt", r."updatedAt"
-         , s.perceived_risk, s.recruiter, s.eye_test_frequency
-         , s.glasses_use, s.behaviour_change, s.risk_res_id
-         , s.id, s."createdAt", s."updatedAt"
-    FROM survey_tbl s
-    FULL JOIN risk_res_tbl r
-    ON s.risk_res_id = r.id;
+        SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
+               r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id AS risk_id,
+               r."createdAt", r."updatedAt", s.perceived_risk, s.recruiter,
+               s.eye_test_frequency, s.glasses_use, s.behaviour_change,
+               s.risk_res_id, s.id, s."createdAt", s."updatedAt"
+        FROM survey_tbl s
+        FULL JOIN risk_res_tbl r
+        ON s.risk_res_id = r.id;
     ''', engine)
     print('joint#:'.ljust(just), '{:0>3}'.format(len(joint.index)))
 
@@ -314,6 +314,49 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                               left_on='risk_res_id',
                               right_on='id',
                               suffixes=('_survey', '_risk'))
+
+    joint_for_pred = pd.read_sql_query('''
+        WITH joint AS (
+            SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
+                   r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id AS risk_id,
+                   r."createdAt", r."updatedAt", s.perceived_risk, s.recruiter,
+                   s.eye_test_frequency, s.glasses_use, s.behaviour_change,
+                   s.risk_res_id, s.id, s."createdAt", s."updatedAt",
+                   (array ['lowest','low','med','high'])[
+                       ceil(greatest(client_risk, 1) / 25.0)
+                   ] AS client_risk_mag,
+                   (array ['lowest','low','med','high'])[
+                       ceil(greatest(perceived_risk, 1) / 25.0)
+                   ] AS perceived_risk_mag
+            FROM survey_tbl s
+            FULL JOIN risk_res_tbl r
+            ON s.risk_res_id = r.id
+            WHERE recruiter IS NOT NULL
+                  AND age IS NOT NULL
+                  AND risk_res_id IS NOT NULL
+                  AND behaviour_change IS NOT NULL )
+        SELECT id, age, client_risk, client_risk_mag, gender,
+               perceived_risk, perceived_risk_mag, behaviour_change
+        FROM joint
+        ORDER BY client_risk, perceived_risk;
+    ''', index_col='id', con=engine)
+
+    print('\nThe following includes only records that completed all 3 steps:')
+    print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
+
+    join_for_pred_unique_cols = {
+        column: tuple(joint_for_pred[column].unique())
+        for column in ('client_risk_mag', 'perceived_risk_mag', 'behaviour_change')
+    }
+
+    for column, unique_values in iteritems(join_for_pred_unique_cols):
+        # if column in frozenset(('client_risk_mag', 'perceived_risk_mag')):
+        for unique_value in unique_values:
+            print('{}::{}:'.format(column, unique_value).ljust(just + 13),
+                  joint_for_pred[(joint_for_pred[column] == unique_value)].size)
+
+    # joint_for_pred[joint_for_pred[''] == '']
+
     '''
 
     print('Of the {survey_count:d} entries:\n'
@@ -346,20 +389,21 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     else:
         email_conversion = completed = 0
 
-    return {'survey_count': total,
-            # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
-            # + step2_count
-            # + joint['id'].size
-            # ,
-            'step1_count': step1_only_count,
-            'step2_count': step2_only_count,
-            'step3_count': step3_only_count,
-            'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
-            'all_steps': all_steps_count,
-            'email_conversion': email_conversion,
-            'completed': completed,
-            'emails': emails
-            }
+    return {
+        'survey_count': total,
+        # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
+        # + step2_count
+        # + joint['id'].size
+        # ,
+        'step1_count': step1_only_count,
+        'step2_count': step2_only_count,
+        'step3_count': step3_only_count,
+        'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
+        'all_steps': all_steps_count,
+        'email_conversion': email_conversion,
+        'completed': completed,
+        'emails': emails
+    }
 
 
 # Average risk calculation
