@@ -24,7 +24,7 @@ def enable_cors():
     response.headers['Access-Control-Allow-Origin'] = '*'  # Take out '*' in production!
 
 
-@rest_api.route('/api/py/analytics', apply=[auth_needed])
+@rest_api.route('/api/py/analytics2', apply=[auth_needed])
 def analytics():
     if request.params.startDatetime and request.params.endDatetime:
         try:

@@ -8,7 +8,9 @@ from os import environ, path
 
 from six import iteritems
 
-from glaucoma_analytics_rest_api.utils import PY3
+from glaucoma_analytics_rest_api.utils import PY3, update_d
+
+# import statsmodels as stats
 
 if PY3:
     import io
@@ -327,7 +329,10 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                    ] AS client_risk_mag,
                    (array ['lowest','low','med','high'])[
                        ceil(greatest(perceived_risk, 1) / 25.0)
-                   ] AS perceived_risk_mag
+                   ] AS perceived_risk_mag,
+                   (array ['000–025','025–050','050–075','075–100'])[
+                       ceil(greatest(perceived_risk, 1) / 25.0)
+                   ] AS age_mag
             FROM survey_tbl s
             FULL JOIN risk_res_tbl r
             ON s.risk_res_id = r.id
@@ -335,7 +340,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                   AND age IS NOT NULL
                   AND risk_res_id IS NOT NULL
                   AND behaviour_change IS NOT NULL )
-        SELECT id, age, client_risk, client_risk_mag, gender,
+        SELECT id, age, age_mag, client_risk, client_risk_mag, gender,
                perceived_risk, perceived_risk_mag, behaviour_change
         FROM joint
         ORDER BY client_risk, perceived_risk;
@@ -345,9 +350,7 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
 
     join_for_pred_unique_cols = {
-        column: {
-            col: None for col in joint_for_pred[column].unique()
-        }
+        column: {col: None for col in joint_for_pred[column].unique()}
         for column in ('client_risk_mag', 'perceived_risk_mag', 'behaviour_change')
     }
 
@@ -409,7 +412,12 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         'email_conversion': email_conversion,
         'completed': completed,
         'emails': emails,
-        'join_for_pred_unique_cols': join_for_pred_unique_cols
+        'join_for_pred_unique_cols': join_for_pred_unique_cols,
+        'joint_for_pred': joint_for_pred.to_dict(),
+        'counts': {
+            column: (lambda p: update_d(p.to_dict(), {'Total': int(p.sum())}))(joint_for_pred[column].value_counts())
+            for column in ('gender', 'age_mag', 'client_risk_mag', 'behaviour_change')
+        }
     }
 
 

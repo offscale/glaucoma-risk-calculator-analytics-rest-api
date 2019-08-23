@@ -28,3 +28,11 @@ def to_datetime_tz(dt):  # type: (str) -> datetime
     elif dt[-1] == 'Z':
         return datetime.strptime(dt, fmt + 'Z')
     return datetime.strptime(dt, fmt)
+
+
+def update_d(d, arg=None, **kwargs):
+    if arg:
+        d.update(arg)
+    if kwargs:
+        d.update(kwargs)
+    return d

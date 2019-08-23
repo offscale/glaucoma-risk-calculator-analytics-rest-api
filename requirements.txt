@@ -8,3 +8,14 @@ pytz
 psycopg2
 gunicorn
 python-dateutil
+scipy
+sklearn
+matplotlib
+seaborn
+statsmodels
+
+# TensorFlow
+requests
+tensorflow
+tensorflow_probability
+requests
