@@ -36,3 +36,7 @@ def update_d(d, arg=None, **kwargs):
     if kwargs:
         d.update(kwargs)
     return d
+
+
+def maybe_to_dict(obj, to_dict):
+    return obj.to_dict() if to_dict else obj

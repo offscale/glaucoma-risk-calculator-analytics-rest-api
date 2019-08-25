@@ -4,13 +4,19 @@
 from __future__ import print_function
 
 from datetime import datetime, timedelta
+from functools import partial
 from os import environ, path
+from sys import modules
 
+import numpy as np
+import pandas as pd
+from pkg_resources import resource_filename
+from pytz import timezone, utc
 from six import iteritems
-
-from glaucoma_analytics_rest_api.utils import PY3, update_d
-
 # import statsmodels as stats
+from sqlalchemy import create_engine
+
+from glaucoma_analytics_rest_api.utils import PY3, update_d, maybe_to_dict
 
 if PY3:
     import io
@@ -38,20 +44,25 @@ else:
             out[0] = out[0].getvalue()
             out[1] = out[1].getvalue()
 
-just = 20  # indentation
-
 '''
-emails = get_ipython().getoutput('sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v \'{"email":null}|{"email":""}\' | wc -l')
+emails = get_ipython().getoutput(
+  'sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v \'{"email":null}|{"email":""}\' | wc -l'
+)
 # ^Ignore duplicated and null entries
 emails = int(emails[0]) + 60  # 60 collected independently by OPSM
 print('emails collected:'.ljust(just), emails)
 '''
 
-from sqlalchemy import create_engine
-import pandas as pd
+# Global variables FTW
 
-from pytz import timezone, utc
+just = 20  # indentation
 
+parent_dir = path.dirname(resource_filename(modules[__name__].__name__.partition('.')[0], '__main__.py'))
+with open(path.join(parent_dir, '_data', 'joint_explosion.sql')) as f:
+    joint_explosion_query = f.read()
+
+
+# /end global vars
 
 def run(event_start, event_end):  # type: (datetime, datetime) -> dict
     """
@@ -82,7 +93,7 @@ def run(event_start, event_end):  # type: (datetime, datetime) -> dict
 sydney = utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(timezone('Australia/Sydney')).tzinfo
 
 
-def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
+def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
     """
     Runner
 
@@ -91,6 +102,9 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
 
     :param event_end: end datetime
     :type event_end: datetime
+
+    :param to_dict: Convert from Pandas formats to Python dictionary
+    :type to_dict: bool
 
     :return: dictionary to show on endpoint
     :rtype: dict
@@ -321,9 +335,10 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         WITH joint AS (
             SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
                    r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id AS risk_id,
-                   r."createdAt", r."updatedAt", s.perceived_risk, s.recruiter,
-                   s.eye_test_frequency, s.glasses_use, s.behaviour_change,
-                   s.risk_res_id, s.id, s."createdAt", s."updatedAt",
+                   r."createdAt", r."updatedAt",
+                   s.perceived_risk, s.recruiter, s.eye_test_frequency,  s.glasses_use,
+                   s.behaviour_change, s.risk_res_id, s.id,
+                   s."createdAt", s."updatedAt",
                    (array ['lowest','low','med','high'])[
                        ceil(greatest(client_risk, 1) / 25.0)
                    ] AS client_risk_mag,
@@ -339,12 +354,15 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
             WHERE recruiter IS NOT NULL
                   AND age IS NOT NULL
                   AND risk_res_id IS NOT NULL
-                  AND behaviour_change IS NOT NULL )
+                  AND behaviour_change IS NOT NULL
+                  AND s."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+
+                   )
         SELECT id, age, age_mag, client_risk, client_risk_mag, gender,
-               perceived_risk, perceived_risk_mag, behaviour_change
+               perceived_risk, perceived_risk_mag, behaviour_change, ethnicity
         FROM joint
         ORDER BY client_risk, perceived_risk;
-    ''', index_col='id', con=engine)
+    '''.replace('EVENT_START', event_start_iso).replace('EVENT_END', event_end_iso), index_col='id', con=engine)
 
     print('\nThe following includes only records that completed all 3 steps:')
     print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
@@ -365,6 +383,59 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
                   join_for_pred_unique_cols[column][unique_value])
 
     # joint_for_pred[joint_for_pred[''] == '']
+    # ethnicities = (lambda array: array.to_list() if to_dict else array)(
+    #    pd.read_sql_query('SELECT DISTINCT(ethnicity) FROM risk_res_tbl;', engine).values.flatten()
+    # )
+
+    joint_explosion = pd.read_sql_query(
+        joint_explosion_query.replace('EVENT_START', event_start_iso).replace('EVENT_END', event_end_iso),
+        engine, 'id'
+    )
+
+    expl_cat_df = joint_explosion[
+        [col for col in joint_explosion.columns
+         if '::' in col]
+    ]
+
+    name2variant_value = {}
+    for col in expl_cat_df:
+        name, variant = col.split('::')
+        value = (lambda vc: True in vc.index and vc.loc[True] or 0)(
+            expl_cat_df[col].value_counts()
+        )
+        total = int(value.sum()) if value > 0 else value
+        with open('/tmp/v.txt', 'a') as f:
+            f.write('value: {} ;\n'.format(value))
+
+        if name not in name2variant_value:
+            name2variant_value[name] = {variant: int(value) if to_dict else value,
+                                        'Total': int(total) if to_dict else total}
+        else:
+            name2variant_value[name][variant] = int(value) if to_dict else value
+
+    # Fix 'Total' calculation
+    for name, variant_value in iteritems(name2variant_value):
+        total = 0
+        for variant, value in iteritems(variant_value):
+            if variant != 'Total':
+                total += value
+        name2variant_value[name]['Total'] = total
+
+    def add_percentage(d):
+        for key, val in iteritems(d):
+            if 'Total' not in val:
+                return d
+            for k, v in iteritems(val):
+                if k != 'Total':
+                    d[key][k] = {
+                        'percentage': np.multiply(
+                            np.divide(np.float64(v),
+                                      np.float64(val['Total'])),
+                            np.float64(100)),
+                        'value': v
+                    }
+
+        return d
 
     '''
 
@@ -398,6 +469,8 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
     else:
         email_conversion = completed = 0
 
+    maybe2dict = partial(maybe_to_dict, to_dict=to_dict)
+
     return {
         'survey_count': total,
         # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
@@ -412,12 +485,16 @@ def _run(event_start, event_end):  # type: (datetime, datetime) -> dict
         'email_conversion': email_conversion,
         'completed': completed,
         'emails': emails,
+        'joint_explosion': maybe2dict(joint_explosion),
         'join_for_pred_unique_cols': join_for_pred_unique_cols,
-        'joint_for_pred': joint_for_pred.to_dict(),
-        'counts': {
-            column: (lambda p: update_d(p.to_dict(), {'Total': int(p.sum())}))(joint_for_pred[column].value_counts())
+        'joint_for_pred': maybe2dict(joint_for_pred),
+        'counts': add_percentage(update_d({
+            column: (lambda p: update_d(
+                p.to_dict(),
+                {'Total': int(p.sum())}
+            ))(joint_for_pred[column].value_counts())
             for column in ('gender', 'age_mag', 'client_risk_mag', 'behaviour_change')
-        }
+        }, ethnicity=name2variant_value['ethnicity']))
     }
 
 
