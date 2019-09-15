@@ -13,6 +13,9 @@ sklearn
 matplotlib
 seaborn
 statsmodels
+xgboost
+mpld3
+graphviz
 
 # TensorFlow
 requests

@@ -8,13 +8,16 @@ from functools import partial
 from os import environ, path
 from sys import modules
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pkg_resources import resource_filename
 from pytz import timezone, utc
 from six import iteritems
 # import statsmodels as stats
+from sklearn.preprocessing import LabelEncoder
 from sqlalchemy import create_engine
+from xgboost import XGBClassifier, to_graphviz
 
 from glaucoma_analytics_rest_api.utils import PY3, update_d, maybe_to_dict
 
@@ -338,7 +341,7 @@ def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bo
                    r."createdAt", r."updatedAt",
                    s.perceived_risk, s.recruiter, s.eye_test_frequency,  s.glasses_use,
                    s.behaviour_change, s.risk_res_id, s.id,
-                   s."createdAt", s."updatedAt",
+                   s."createdAt" as created, s."updatedAt" as updated,
                    (array ['lowest','low','med','high'])[
                        ceil(greatest(client_risk, 1) / 25.0)
                    ] AS client_risk_mag,
@@ -356,31 +359,25 @@ def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bo
                   AND risk_res_id IS NOT NULL
                   AND behaviour_change IS NOT NULL
                   AND s."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+                  AND s."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+                  AND r."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+                  AND r."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
 
                    )
         SELECT id, age, age_mag, client_risk, client_risk_mag, gender,
                perceived_risk, perceived_risk_mag, behaviour_change, ethnicity
         FROM joint
+        WHERE created BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+              AND updated BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
         ORDER BY client_risk, perceived_risk;
     '''.replace('EVENT_START', event_start_iso).replace('EVENT_END', event_end_iso), index_col='id', con=engine)
 
     print('\nThe following includes only records that completed all 3 steps:')
     print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
 
-    join_for_pred_unique_cols = {
-        column: {col: None for col in joint_for_pred[column].unique()}
-        for column in ('client_risk_mag', 'perceived_risk_mag', 'behaviour_change')
-    }
-
-    for column, unique_values in iteritems(join_for_pred_unique_cols):
-        # if column in frozenset(('client_risk_mag', 'perceived_risk_mag')):
-        for unique_value in unique_values:
-            join_for_pred_unique_cols[column][unique_value] = int(
-                joint_for_pred[(joint_for_pred[column] == unique_value)].size
-            )
-
-            print('{}::{}:'.format(column, unique_value).ljust(just + 13),
-                  join_for_pred_unique_cols[column][unique_value])
+    _joint_for_pred_3cols = joint_for_pred[['client_risk_mag', 'perceived_risk_mag', 'behaviour_change']]
+    join_for_pred_unique_cols = {column: _joint_for_pred_3cols[column].value_counts().to_dict()
+                                 for column in _joint_for_pred_3cols}
 
     # joint_for_pred[joint_for_pred[''] == '']
     # ethnicities = (lambda array: array.to_list() if to_dict else array)(
@@ -429,13 +426,43 @@ def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bo
                 if k != 'Total':
                     d[key][k] = {
                         'percentage': np.multiply(
-                            np.divide(np.float64(v),
-                                      np.float64(val['Total'])),
+                            np.true_divide(np.float64(v),
+                                           np.float64(val['Total'])),
                             np.float64(100)),
                         'value': v
                     }
 
         return d
+
+    data = joint_for_pred.copy()  # copying the entire dataset into a new shorter variable
+    data = data.reset_index()
+    data = data.loc[:, data.columns != 'index']
+
+    cat_df = data.loc[:, data.columns != 'age']  # creating a dataset only for categorical variables
+    cat_df = cat_df.loc[:, cat_df.columns != 'client_risk']
+
+    le = LabelEncoder()
+    enc_df = pd.DataFrame({column: le.fit_transform(cat_df[column])
+                           for column in cat_df})
+    # append the age and client_risk columns onto the categorical dataframe
+    # we can do this since label encoding maintains row order
+    data_cat = enc_df
+    data_cat['age'] = data['age']
+    data_cat['client_risk'] = data['client_risk']
+    features = data_cat.loc[:, data_cat.columns != 'behaviour_change']
+    label = data_cat['behaviour_change']
+
+    model = XGBClassifier()
+    model.fit(features, label)
+
+    def booster2graphviz(booster, fmap='', num_trees=0, rankdir='UT', ax=None, **kwargs):
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        return to_graphviz(booster, fmap=fmap, num_trees=num_trees,
+                           rankdir=rankdir, **kwargs)
+
+    big_xgb_gv = booster2graphviz(model)
 
     '''
 
@@ -494,7 +521,8 @@ def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bo
                 {'Total': int(p.sum())}
             ))(joint_for_pred[column].value_counts())
             for column in ('gender', 'age_mag', 'client_risk_mag', 'behaviour_change')
-        }, ethnicity=name2variant_value['ethnicity']))
+        }, ethnicity=name2variant_value['ethnicity'])),
+        'big_xgb_gv': '{}'.format(big_xgb_gv)
     }
 
 
