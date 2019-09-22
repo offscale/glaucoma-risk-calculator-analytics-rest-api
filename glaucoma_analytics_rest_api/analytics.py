@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 
+from base64 import b64encode, encodestring, encodebytes
 from datetime import datetime, timedelta
 from functools import partial
 from os import environ, path
@@ -17,7 +18,12 @@ from six import iteritems
 # import statsmodels as stats
 from sklearn.preprocessing import LabelEncoder
 from sqlalchemy import create_engine
-from xgboost import XGBClassifier, to_graphviz
+from xgboost import XGBClassifier, to_graphviz, plot_importance
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from six import StringIO
 
 from glaucoma_analytics_rest_api.utils import PY3, update_d, maybe_to_dict
 
@@ -67,7 +73,7 @@ with open(path.join(parent_dir, '_data', 'joint_explosion.sql')) as f:
 
 # /end global vars
 
-def run(event_start, event_end):  # type: (datetime, datetime) -> dict
+def run(event_start, event_end, function):  # type: (datetime, datetime) -> dict
     """
     Runner, wraps stdout and stderr also
 
@@ -77,17 +83,20 @@ def run(event_start, event_end):  # type: (datetime, datetime) -> dict
     :param event_end: end datetime
     :type event_end: datetime
 
+    :param function: function to run
+    :type function: (datetime, datetime) -> {}
+
     :return: dictionary to show on endpoint
     :rtype: dict
     """
     if PY3:
         f = io.StringIO()
         with redirect_stdout(f):
-            res = _run(event_start, event_end)
+            res = function(event_start, event_end)
         res['_out'] = f.getvalue()
     else:
         with capture() as out:
-            res = _run(event_start, event_end)
+            res = function(event_start, event_end)
             res['_out'] = out
     return res
 
@@ -96,7 +105,7 @@ def run(event_start, event_end):  # type: (datetime, datetime) -> dict
 sydney = utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(timezone('Australia/Sydney')).tzinfo
 
 
-def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
+def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
     """
     Runner
 
@@ -334,43 +343,7 @@ def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bo
                               right_on='id',
                               suffixes=('_survey', '_risk'))
 
-    joint_for_pred = pd.read_sql_query('''
-        WITH joint AS (
-            SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
-                   r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id AS risk_id,
-                   r."createdAt", r."updatedAt",
-                   s.perceived_risk, s.recruiter, s.eye_test_frequency,  s.glasses_use,
-                   s.behaviour_change, s.risk_res_id, s.id,
-                   s."createdAt" as created, s."updatedAt" as updated,
-                   (array ['lowest','low','med','high'])[
-                       ceil(greatest(client_risk, 1) / 25.0)
-                   ] AS client_risk_mag,
-                   (array ['lowest','low','med','high'])[
-                       ceil(greatest(perceived_risk, 1) / 25.0)
-                   ] AS perceived_risk_mag,
-                   (array ['000–025','025–050','050–075','075–100'])[
-                       ceil(greatest(perceived_risk, 1) / 25.0)
-                   ] AS age_mag
-            FROM survey_tbl s
-            FULL JOIN risk_res_tbl r
-            ON s.risk_res_id = r.id
-            WHERE recruiter IS NOT NULL
-                  AND age IS NOT NULL
-                  AND risk_res_id IS NOT NULL
-                  AND behaviour_change IS NOT NULL
-                  AND s."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-                  AND s."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-                  AND r."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-                  AND r."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-
-                   )
-        SELECT id, age, age_mag, client_risk, client_risk_mag, gender,
-               perceived_risk, perceived_risk_mag, behaviour_change, ethnicity
-        FROM joint
-        WHERE created BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-              AND updated BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-        ORDER BY client_risk, perceived_risk;
-    '''.replace('EVENT_START', event_start_iso).replace('EVENT_END', event_end_iso), index_col='id', con=engine)
+    joint_for_pred = run_join_for_pred_query(engine, event_end_iso, event_start_iso)
 
     print('\nThe following includes only records that completed all 3 steps:')
     print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
@@ -434,36 +407,6 @@ def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bo
 
         return d
 
-    data = joint_for_pred.copy()  # copying the entire dataset into a new shorter variable
-    data = data.reset_index()
-    data = data.loc[:, data.columns != 'index']
-
-    cat_df = data.loc[:, data.columns != 'age']  # creating a dataset only for categorical variables
-    cat_df = cat_df.loc[:, cat_df.columns != 'client_risk']
-
-    le = LabelEncoder()
-    enc_df = pd.DataFrame({column: le.fit_transform(cat_df[column])
-                           for column in cat_df})
-    # append the age and client_risk columns onto the categorical dataframe
-    # we can do this since label encoding maintains row order
-    data_cat = enc_df
-    data_cat['age'] = data['age']
-    data_cat['client_risk'] = data['client_risk']
-    features = data_cat.loc[:, data_cat.columns != 'behaviour_change']
-    label = data_cat['behaviour_change']
-
-    model = XGBClassifier()
-    model.fit(features, label)
-
-    def booster2graphviz(booster, fmap='', num_trees=0, rankdir='UT', ax=None, **kwargs):
-        if ax is None:
-            _, ax = plt.subplots(1, 1)
-
-        return to_graphviz(booster, fmap=fmap, num_trees=num_trees,
-                           rankdir=rankdir, **kwargs)
-
-    big_xgb_gv = booster2graphviz(model)
-
     '''
 
     print('Of the {survey_count:d} entries:\n'
@@ -521,10 +464,123 @@ def _run(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bo
                 {'Total': int(p.sum())}
             ))(joint_for_pred[column].value_counts())
             for column in ('gender', 'age_mag', 'client_risk_mag', 'behaviour_change')
-        }, ethnicity=name2variant_value['ethnicity'])),
-        'big_xgb_gv': '{}'.format(big_xgb_gv)
+        }, ethnicity=name2variant_value['ethnicity']))
     }
 
+
+def run_join_for_pred_query(engine, event_end_iso, event_start_iso):
+    return pd.read_sql_query('''
+        WITH joint AS (
+            SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
+                   r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id AS risk_id,
+                   r."createdAt", r."updatedAt",
+                   s.perceived_risk, s.recruiter, s.eye_test_frequency,  s.glasses_use,
+                   s.behaviour_change, s.risk_res_id, s.id,
+                   s."createdAt" as created, s."updatedAt" as updated,
+                   (array ['lowest','low','med','high'])[
+                       ceil(greatest(client_risk, 1) / 25.0)
+                   ] AS client_risk_mag,
+                   (array ['lowest','low','med','high'])[
+                       ceil(greatest(perceived_risk, 1) / 25.0)
+                   ] AS perceived_risk_mag,
+                   (array ['000–025','025–050','050–075','075–100'])[
+                       ceil(greatest(perceived_risk, 1) / 25.0)
+                   ] AS age_mag
+            FROM survey_tbl s
+            FULL JOIN risk_res_tbl r
+            ON s.risk_res_id = r.id
+            WHERE recruiter IS NOT NULL
+                  AND age IS NOT NULL
+                  AND risk_res_id IS NOT NULL
+                  AND behaviour_change IS NOT NULL
+                  AND s."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+                  AND s."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+                  AND r."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+                  AND r."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+
+                   )
+        SELECT id, age, age_mag, client_risk, client_risk_mag, gender,
+               perceived_risk, perceived_risk_mag, behaviour_change, ethnicity
+        FROM joint
+        WHERE created BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+              AND updated BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+        ORDER BY client_risk, perceived_risk;
+    '''.replace('EVENT_START', event_start_iso).replace('EVENT_END', event_end_iso), index_col='id', con=engine)
+
+
+def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
+    """
+    Runner
+
+    :param event_start: start datetime
+    :type event_start: datetime
+
+    :param event_end: end datetime
+    :type event_end: datetime
+
+    :param to_dict: Convert from Pandas formats to Python dictionary
+    :type to_dict: bool
+
+    :return: dictionary to show on endpoint
+    :rtype: dict
+    """
+    event_start_iso = event_start.isoformat()
+    event_end_iso = event_end.isoformat()
+
+    engine = create_engine(environ['RDBMS_URI'])
+
+    join_for_pred = run_join_for_pred_query(engine, event_end_iso, event_start_iso)
+    join_for_pred = join_for_pred.reset_index()
+    join_for_pred = join_for_pred.loc[:, join_for_pred.columns != 'index']
+
+    join_for_pred.rename(columns={'perceived_risk': 'perception'})
+
+    cat_df = join_for_pred.loc[:, join_for_pred.columns != 'age']  # creating a dataset only for categorical variables
+    cat_df = cat_df.loc[:, cat_df.columns != 'client_risk']
+
+    le = LabelEncoder()
+    enc_df = pd.DataFrame({column: le.fit_transform(cat_df[column])
+                           for column in cat_df})
+    # append the age and client_risk columns onto the categorical dataframe
+    # we can do this since label encoding maintains row order
+    data_cat = enc_df
+    data_cat['age'] = join_for_pred['age']
+    data_cat['client_risk'] = join_for_pred['client_risk']
+
+    features = data_cat.loc[:, data_cat.columns != 'behaviour_change']
+    label = data_cat['behaviour_change']
+
+    model = XGBClassifier()
+    model.fit(features, label)
+
+    def booster2graphviz(booster, fmap='', num_trees=0, rankdir='UT', ax=None, **kwargs):
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        return to_graphviz(booster, fmap=fmap, num_trees=num_trees,
+                           rankdir=rankdir, **kwargs)
+
+    big_xgb_gv = booster2graphviz(model)
+
+    feature_importance_gv = {}
+    k = plot_importance(model)
+    k.plot()
+    for f in dir(k):
+        try:
+            feature_importance_gv[f] = getattr(plot_importance, f)()
+        except Exception as e:
+            print(e)
+
+    sio = StringIO()
+    plt.savefig(sio, format='svg')
+    sio.seek(0)
+    feature_importance_gv = '{}'.format(b64encode(sio.read().encode('utf-8')))[2:-1]
+    # feature_importance_gv['plot_importance(model)'] = '{}'.format(plot_importance(model))
+
+    return {
+        'big_xgb_gv': '{}'.format(big_xgb_gv),
+        'feature_importance_gv': '{}'.format(feature_importance_gv)
+    }
 
 # Average risk calculation
 # Use same sorts of statistics used in eLearning course

@@ -3,12 +3,13 @@
 from __future__ import print_function
 
 from datetime import datetime, timedelta
+from sys import stderr
 
 from bottle import response, request
 from dateutil.parser import parse
 
 from glaucoma_analytics_rest_api import rest_api, __version__
-from glaucoma_analytics_rest_api.analytics import run, sydney
+from glaucoma_analytics_rest_api.analytics import sydney, analytics2, analytics3
 from glaucoma_analytics_rest_api.utils import auth_needed, PY3
 
 if PY3:
@@ -25,7 +26,16 @@ def enable_cors():
 
 
 @rest_api.route('/api/py/analytics2', apply=[auth_needed])
-def analytics():
+def analytics2_route():
+    return analytics_body(analytics2)
+
+
+@rest_api.route('/api/py/analytics3', apply=[auth_needed])
+def analytics3_route():
+    return analytics_body(analytics3)
+
+
+def analytics_body(function):
     if request.params.startDatetime and request.params.endDatetime:
         try:
             event_start = parse(unquote(request.params.startDatetime))
@@ -39,8 +49,7 @@ def analytics():
         # (which corresponds with the OPSM event start & end time)
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
-
-    return run(event_start, event_end)
+    return function(event_start, event_end, function)
 
 
 @rest_api.route('/api')
