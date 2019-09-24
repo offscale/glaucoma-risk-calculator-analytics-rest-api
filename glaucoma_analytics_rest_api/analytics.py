@@ -533,6 +533,8 @@ def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     join_for_pred = join_for_pred.reset_index()
     join_for_pred = join_for_pred.loc[:, join_for_pred.columns != 'index']
 
+    del join_for_pred['id']
+
     join_for_pred.rename(columns={'perceived_risk': 'perception'})
 
     cat_df = join_for_pred.loc[:, join_for_pred.columns != 'age']  # creating a dataset only for categorical variables
