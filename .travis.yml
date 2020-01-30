@@ -30,7 +30,7 @@ before_script:
     - npm config set spin false
     - npm i -g npm
     - npm i -g bunyan mocha node-gyp tslint typings typescript
-    - git clone https://github.com/glaucoma/glaucoma-risk-calculator-rest-api
+    - git clone https://github.com/offscale/glaucoma-risk-calculator-rest-api
     - pushd glaucoma-risk-calculator-rest-api
     - typings i
     - npm ci
