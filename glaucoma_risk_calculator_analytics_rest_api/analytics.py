@@ -397,11 +397,14 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
                 return d
             for k, v in iteritems(val):
                 if k != 'Total':
+                    print('val:', val)
+                    print('v:', v)
+                    print("val['Total']", val['Total'])
                     d[key][k] = {
                         'percentage': np.multiply(
                             np.true_divide(np.float64(v),
                                            np.float64(val['Total'])),
-                            np.float64(100)),
+                            np.float64(100)) if np.isnan(val['Total']) and val['Total'] > 0 else 0,
                         'value': v
                     }
 

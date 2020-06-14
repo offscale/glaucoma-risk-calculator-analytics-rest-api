@@ -1,10 +1,10 @@
-glaucoma-analytics-rest-api
-===========================
+glaucoma-risk-calculator-analytics-rest-api
+===========================================
 [![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Python version](https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7-blue)
 ![Python implementation](https://img.shields.io/badge/implementation-cpython-blue)
-[![Build Status](https://travis-ci.org/glaucoma/glaucoma-analytics-rest-api.svg?branch=master)](https://travis-ci.org/glaucoma/glaucoma-analytics-rest-api)
-[![Coverage Status](https://coveralls.io/repos/github/glaucoma/glaucoma-analytics-rest-api/badge.svg)](https://coveralls.io/github/glaucoma/glaucoma-analytics-rest-api)
+[![Build Status](https://travis-ci.org/offscale/glaucoma-risk-calculator-analytics-rest-api.svg?branch=master)](https://travis-ci.org/offscale/glaucoma-risk-calculator-analytics-rest-api)
+[![Coverage Status](https://coveralls.io/repos/github/offscale/glaucoma-risk-calculator-analytics-rest-api/badge.svg)](https://coveralls.io/github/offscale/glaucoma-risk-calculator-analytics-rest-api)
 
 Python API for Glaucoma Risk Calculator analytics.
 
@@ -37,7 +37,7 @@ Additionally there are environment variables, run `grep -F environ glaucoma_anal
 [Circus](https://circus.readthedocs.io) example:
 ```ini
 [watcher:calc]
-working_dir = /var/www/glaucoma/glaucoma-analytics-rest-api
+working_dir = /var/www/offscale/glaucoma-risk-calculator-analytics-rest-api
 cmd = python
 args = -m glaucoma_analytics_rest_api
 uid = g_user
@@ -61,7 +61,7 @@ TERM=rxvt-256color
 SHELL=/bin/bash
 USER=g_user
 LANG=en_US.UTF-8
-HOME=/var/www/glaucoma/glaucoma-analytics-rest-api
+HOME=/var/www/offscale/glaucoma-risk-calculator-analytics-rest-api
 SERVER=gunicorn
 PORT=5454
 RDBMS_URI=postgresql://username:password@host:port/database
