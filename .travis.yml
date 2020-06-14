@@ -41,7 +41,7 @@ before_script:
 
 script:
     - pip install coveralls
-    - coverage run --source='glaucoma_analytics_rest_api' setup.py test
+    - coverage run --source='glaucoma_risk_calculator_analytics_rest_api' setup.py test
 
 after_success:
     - coveralls

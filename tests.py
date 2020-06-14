@@ -9,9 +9,9 @@ from unittest import TestCase, main as unittest_main
 
 from webtest import TestApp
 
-from glaucoma_analytics_rest_api import rest_api
-from glaucoma_analytics_rest_api.analytics import sydney
-from glaucoma_analytics_rest_api.routes import run
+from glaucoma_risk_calculator_analytics_rest_api import rest_api
+from glaucoma_risk_calculator_analytics_rest_api.analytics import sydney
+from glaucoma_risk_calculator_analytics_rest_api.routes import run
 
 
 class TestRestApi(TestCase):

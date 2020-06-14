@@ -25,7 +25,7 @@ try:
 except ImportError:
     from six import StringIO
 
-from glaucoma_analytics_rest_api.utils import PY3, update_d, maybe_to_dict
+from glaucoma_risk_calculator_analytics_rest_api.utils import PY3, update_d, maybe_to_dict
 
 if PY3:
     import io

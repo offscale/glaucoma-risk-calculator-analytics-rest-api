@@ -15,7 +15,7 @@ else:
     from itertools import imap, ifilter
 
 if __name__ == '__main__':
-    package_name = 'glaucoma_analytics_rest_api'
+    package_name = 'glaucoma_risk_calculator_analytics_rest_api'
 
     with open(path.join(package_name, '__init__.py')) as f:
         __version__, __author__ = imap(

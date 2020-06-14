@@ -7,7 +7,7 @@ from sys import stderr
 
 from bottle import request, HTTPResponse
 
-from glaucoma_analytics_rest_api import redis
+from glaucoma_risk_calculator_analytics_rest_api import redis
 
 
 def auth_needed(f):

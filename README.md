@@ -19,10 +19,10 @@ $ pip install .
 
 ## Usage
 ```sh
-$ python -m glaucoma_analytics_rest_api
+$ python -m glaucoma_risk_calculator_analytics_rest_api
 ```
 
-Additionally there are environment variables, run `grep -F environ glaucoma_analytics_rest_api` to see current ones. E.g.:
+Additionally there are environment variables, run `grep -F environ glaucoma_risk_calculator_analytics_rest_api` to see current ones. E.g.:
 
     Variable    |  Default
     -------------------------
@@ -39,7 +39,7 @@ Additionally there are environment variables, run `grep -F environ glaucoma_anal
 [watcher:calc]
 working_dir = /var/www/offscale/glaucoma-risk-calculator-analytics-rest-api
 cmd = python
-args = -m glaucoma_analytics_rest_api
+args = -m glaucoma_risk_calculator_analytics_rest_api
 uid = g_user
 numprocesses = 1
 autostart = true
