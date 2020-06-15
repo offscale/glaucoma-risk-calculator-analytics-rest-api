@@ -1,3 +1,4 @@
+os: linux
 dist: bionic
 language: python
 python:
@@ -15,6 +16,7 @@ addons:
             - software-properties-common
             - wget
             - libomp-dev
+            - libpq-dev
 
 services:
     - postgresql
@@ -30,6 +32,7 @@ install:
 env:
     global:
         - RDBMS_URI='postgres://postgres@localhost/travis_ci_test'
+        - TEST_MODE=true
 
 before_script:
     - echo 'Etc/UTC' | sudo tee /etc/timezone
