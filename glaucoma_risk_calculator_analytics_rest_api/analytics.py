@@ -20,29 +20,24 @@ from sklearn.preprocessing import LabelEncoder
 from sqlalchemy import create_engine
 from xgboost import XGBClassifier, to_graphviz, plot_importance
 
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from six import StringIO
-
 from glaucoma_risk_calculator_analytics_rest_api.utils import PY3, update_d, maybe_to_dict
 
 if PY3:
-    import io
     from contextlib import redirect_stdout
+    from io import StringIO
 else:
     from contextlib import contextmanager
+
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from StringIO import StringIO
 
 
     @contextmanager
     def capture():
         import sys
-        try:
-            # noinspection PyCompatibility
-            from cStringIO import StringIO
-        except ImportError:
-            # noinspection PyCompatibility
-            from StringIO import StringIO
+
         oldout, olderr = sys.stdout, sys.stderr
         out = [StringIO(), StringIO()]
         try:
@@ -90,7 +85,7 @@ def run(event_start, event_end, function):  # type: (datetime, datetime) -> dict
     :rtype: dict
     """
     if PY3:
-        f = io.StringIO()
+        f = StringIO()
         with redirect_stdout(f):
             res = function(event_start, event_end)
         res['_out'] = f.getvalue()
@@ -121,7 +116,7 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     :return: dictionary to show on endpoint
     :rtype: dict
     """
-    engine = create_engine(environ['RDBMS_URI'])
+    engine = create_engine(environ['RDBMS_URI'], echo=True)
 
     survey_tbl = pd.read_sql_table('survey_tbl', engine)
     survey_tbl_count = len(survey_tbl.index)
@@ -167,10 +162,6 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
         ))
 
     # survey_tbl.join(risk_res_tbl, on='risk_res_id')
-    '''
-    SELECT r.client_risk
-    FROM risk_res_tbl r;
-    '''
 
     joint = pd.read_sql_query('''
         SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
@@ -199,9 +190,8 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     FROM survey_tbl s
     WHERE s.risk_res_id IS NULL
           AND s.behaviour_change IS NULL
-          AND s."createdAt" BETWEEN {event_start!r} AND {event_end!r};
-    '''.format(event_start=event_start_iso,
-               event_end=event_end_iso), engine)
+          AND s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s;
+    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
     step1_only_count, _s1 = len(step1_only.index), int(step1_only_sql['count'])
     assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
     print('step1_only#:'.ljust(just), '{:0>3}'.format(step1_only_count))
@@ -218,15 +208,14 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     SELECT COUNT(*)
     FROM risk_res_tbl r
     WHERE 
-           r."createdAt" BETWEEN {event_start!r} AND {event_end!r}
+           r."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
            AND r.id IN ( SELECT id
                          FROM risk_res_tbl rr
                          EXCEPT
                          SELECT risk_res_id
                          FROM survey_tbl s
-                         WHERE s."createdAt" BETWEEN {event_start!r} AND {event_end!r});
-    '''.format(event_start=event_start_iso,
-               event_end=event_end_iso), engine)
+                         WHERE s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s );
+    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
     step2_only_count, _s1 = len(step2_only.index), int(step2_only_sql['count'])
 
     # assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
@@ -240,11 +229,10 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     SELECT COUNT(*)
     FROM survey_tbl s
     WHERE
-           s."createdAt" BETWEEN {event_start!r} AND {event_end!r}
+           s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
            AND s.risk_res_id IS NULL
            AND s.perceived_risk IS NULL;
-    '''.format(event_start=event_start_iso,
-               event_end=event_end_iso), engine)
+    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
     step3_only_count, _snd = len(step3_only['id'].index), int(step3_only_sql['count'])
     assert step3_only_count == _snd, 'Expected {} == {}'.format(step3_only_count, _snd)
     print('step3_only#:'.ljust(just), '{:0>3}'.format(step3_only_count))
@@ -253,21 +241,19 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     SELECT COUNT(risk_res_id)
     FROM survey_tbl s
     WHERE
-          s."createdAt" BETWEEN {event_start!r} AND {event_end!r}
+          s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
             AND s.risk_res_id IS NOT NULL;
-    '''.format(event_start=event_start_iso,
-               event_end=event_end_iso), engine)
+    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
 
     number_of_unique_risk_res_ids_sql = pd.read_sql_query('''
     SELECT COUNT(*)
     FROM (SELECT DISTINCT risk_res_id
           FROM survey_tbl s
           WHERE
-              s."createdAt" BETWEEN {event_start!r} AND {event_end!r}
+              s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
                 AND s.risk_res_id IS NOT NULL
           ) AS C;
-    '''.format(event_start=event_start_iso,
-               event_end=event_end_iso), engine)
+    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
 
     number_of_risk_res_ids = survey_tbl[
         survey_tbl['risk_res_id'].notnull()
@@ -358,8 +344,8 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     # )
 
     joint_explosion = pd.read_sql_query(
-        joint_explosion_query.replace('EVENT_START', event_start_iso).replace('EVENT_END', event_end_iso),
-        engine, 'id'
+        joint_explosion_query.replace('EVENT_START', '%(event_start_iso)s').replace('EVENT_END', '%(event_end_iso)s'),
+        engine, 'id', params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso}
     )
 
     expl_cat_df = joint_explosion[
@@ -496,19 +482,19 @@ def run_join_for_pred_query(engine, event_end_iso, event_start_iso):
                   AND age IS NOT NULL
                   AND risk_res_id IS NOT NULL
                   AND behaviour_change IS NOT NULL
-                  AND s."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-                  AND s."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-                  AND r."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-                  AND r."updatedAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+                  AND s."createdAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
+                  AND s."updatedAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
+                  AND r."createdAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
+                  AND r."updatedAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
 
                    )
         SELECT id, age, age_mag, client_risk, client_risk_mag, gender,
                perceived_risk, perceived_risk_mag, behaviour_change, ethnicity
         FROM joint
-        WHERE created BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
-              AND updated BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+        WHERE     created BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
+              AND updated BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
         ORDER BY client_risk, perceived_risk;
-    '''.replace('EVENT_START', event_start_iso).replace('EVENT_END', event_end_iso), index_col='id', con=engine)
+    ''', index_col='id', con=engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
 
 
 def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
