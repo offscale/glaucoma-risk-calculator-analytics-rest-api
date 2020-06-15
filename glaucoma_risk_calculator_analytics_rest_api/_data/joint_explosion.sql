@@ -68,7 +68,7 @@ WITH joint_explosion AS (
       AND age IS NOT NULL
       AND risk_res_id IS NOT NULL
       AND behaviour_change IS NOT NULL
-      AND s."createdAt" BETWEEN 'EVENT_START'::timestamptz AND 'EVENT_END'::timestamptz
+      AND s."createdAt" BETWEEN 'EVENT_START' AND 'EVENT_END'
     GROUP BY r.ethnicity, r.age, r.client_risk, r.gender, r.other_info, r.email,
              r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id,
              s.perceived_risk, s.recruiter, s.eye_test_frequency, s.glasses_use,

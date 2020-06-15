@@ -190,8 +190,8 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     FROM survey_tbl s
     WHERE s.risk_res_id IS NULL
           AND s.behaviour_change IS NULL
-          AND s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s;
-    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
+          AND s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz;
+    ''', engine, params={'event_start': event_start, 'event_end': event_end})
     step1_only_count, _s1 = len(step1_only.index), int(step1_only_sql['count'])
     assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
     print('step1_only#:'.ljust(just), '{:0>3}'.format(step1_only_count))
@@ -208,14 +208,14 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     SELECT COUNT(*)
     FROM risk_res_tbl r
     WHERE 
-           r."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
+           r."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
            AND r.id IN ( SELECT id
                          FROM risk_res_tbl rr
                          EXCEPT
                          SELECT risk_res_id
                          FROM survey_tbl s
-                         WHERE s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s );
-    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
+                         WHERE s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz );
+    ''', engine, params={'event_start': event_start, 'event_end': event_end})
     step2_only_count, _s1 = len(step2_only.index), int(step2_only_sql['count'])
 
     # assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
@@ -229,10 +229,10 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     SELECT COUNT(*)
     FROM survey_tbl s
     WHERE
-           s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
+           s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
            AND s.risk_res_id IS NULL
            AND s.perceived_risk IS NULL;
-    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
+    ''', engine, params={'event_start': event_start, 'event_end': event_end})
     step3_only_count, _snd = len(step3_only['id'].index), int(step3_only_sql['count'])
     assert step3_only_count == _snd, 'Expected {} == {}'.format(step3_only_count, _snd)
     print('step3_only#:'.ljust(just), '{:0>3}'.format(step3_only_count))
@@ -241,19 +241,19 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     SELECT COUNT(risk_res_id)
     FROM survey_tbl s
     WHERE
-          s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
+          s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
             AND s.risk_res_id IS NOT NULL;
-    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
+    ''', engine, params={'event_start': event_start, 'event_end': event_end})
 
     number_of_unique_risk_res_ids_sql = pd.read_sql_query('''
     SELECT COUNT(*)
     FROM (SELECT DISTINCT risk_res_id
           FROM survey_tbl s
           WHERE
-              s."createdAt" BETWEEN %(event_start_iso)s AND %(event_end_iso)s
+              s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
                 AND s.risk_res_id IS NOT NULL
           ) AS C;
-    ''', engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
+    ''', engine, params={'event_start': event_start, 'event_end': event_end})
 
     number_of_risk_res_ids = survey_tbl[
         survey_tbl['risk_res_id'].notnull()
@@ -329,7 +329,7 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
                               right_on='id',
                               suffixes=('_survey', '_risk'))
 
-    joint_for_pred = run_join_for_pred_query(engine, event_end_iso, event_start_iso)
+    joint_for_pred = run_join_for_pred_query(engine, event_start, event_end)
 
     print('\nThe following includes only records that completed all 3 steps:')
     print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
@@ -344,8 +344,10 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     # )
 
     joint_explosion = pd.read_sql_query(
-        joint_explosion_query.replace('EVENT_START', '%(event_start_iso)s').replace('EVENT_END', '%(event_end_iso)s'),
-        engine, 'id', params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso}
+        joint_explosion_query
+            .replace('\'EVENT_START\'', '%(event_start)s::timestamptz')
+            .replace('\'EVENT_END\'', '%(event_end)s::timestamptz'),
+        engine, 'id', params={'event_start': event_start, 'event_end': event_end}
     )
 
     expl_cat_df = joint_explosion[
@@ -364,8 +366,8 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
             f.write('value: {} ;\n'.format(value))
 
         if name not in name2variant_value:
-            name2variant_value[name] = {variant: int(value) if to_dict else value,
-                                        'Total': int(total) if to_dict else total}
+            name2variant_value[name] = {variant: int(value), 'Total': int(total)} if to_dict \
+                else {variant: value, 'Total': total}
         else:
             name2variant_value[name][variant] = int(value) if to_dict else value
 
@@ -457,7 +459,7 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     }
 
 
-def run_join_for_pred_query(engine, event_end_iso, event_start_iso):
+def run_join_for_pred_query(engine, event_start, event_end):
     return pd.read_sql_query('''
         WITH joint AS (
             SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
@@ -482,19 +484,19 @@ def run_join_for_pred_query(engine, event_end_iso, event_start_iso):
                   AND age IS NOT NULL
                   AND risk_res_id IS NOT NULL
                   AND behaviour_change IS NOT NULL
-                  AND s."createdAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
-                  AND s."updatedAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
-                  AND r."createdAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
-                  AND r."updatedAt" BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
+                  AND s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
+                  AND s."updatedAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
+                  AND r."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
+                  AND r."updatedAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
 
                    )
         SELECT id, age, age_mag, client_risk, client_risk_mag, gender,
                perceived_risk, perceived_risk_mag, behaviour_change, ethnicity
         FROM joint
-        WHERE     created BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
-              AND updated BETWEEN %(event_start_iso)s::timestamptz AND %(event_end_iso)s::timestamptz
+        WHERE     created BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
+              AND updated BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
         ORDER BY client_risk, perceived_risk;
-    ''', index_col='id', con=engine, params={'event_start_iso': event_start_iso, 'event_end_iso': event_end_iso})
+    ''', index_col='id', con=engine, params={'event_start': event_start, 'event_end': event_end})
 
 
 def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
@@ -513,12 +515,12 @@ def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     :return: dictionary to show on endpoint
     :rtype: dict
     """
-    event_start_iso = event_start.isoformat()
-    event_end_iso = event_end.isoformat()
+    # event_start_iso = event_start.isoformat()
+    # event_end_iso = event_end.isoformat()
 
     engine = create_engine(environ['RDBMS_URI'])
 
-    join_for_pred = run_join_for_pred_query(engine, event_end_iso, event_start_iso)
+    join_for_pred = run_join_for_pred_query(engine, event_start, event_end)
     join_for_pred = join_for_pred.reset_index()
     join_for_pred = join_for_pred.loc[:, join_for_pred.columns != 'index']
 
