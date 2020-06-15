@@ -1,3 +1,4 @@
+dist: bionic
 language: python
 python:
     - "2.7"
@@ -8,7 +9,11 @@ addons:
     apt:
         packages:
             - gyp
-            - cmake
+            - apt-transport-https
+            - ca-certificates
+            - gnupg
+            - software-properties-common
+            - wget
             - libomp-dev
 
 services:
@@ -16,6 +21,9 @@ services:
     - redis
 
 install:
+    - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+    - sudo apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
+    - sudo apt-get install -y cmake
     - pip install -r requirements.txt
     - pip install .
 
