@@ -32,7 +32,7 @@ class TestRestApi(TestCase):
     def test_run(self):
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
-        actual_output = self.app.get('/api/py/analytics2',
+        actual_output = self.app.get('/api/py/analytics3',
                                      params={'event_start': event_start, 'event_end': event_end}).json
 
         PrettyPrinter(indent=4).pprint(actual_output)
