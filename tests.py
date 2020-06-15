@@ -9,26 +9,31 @@ from unittest import TestCase, main as unittest_main
 
 from webtest import TestApp
 
-from glaucoma_risk_calculator_analytics_rest_api import rest_api
+import glaucoma_risk_calculator_analytics_rest_api
+
+glaucoma_risk_calculator_analytics_rest_api.is_test = True
+
+import glaucoma_risk_calculator_analytics_rest_api.routes
 from glaucoma_risk_calculator_analytics_rest_api.analytics import sydney
-from glaucoma_risk_calculator_analytics_rest_api.routes import run
 
 
 class TestRestApi(TestCase):
     maxDiff = 444444
-    app = TestApp(rest_api)
+    app = TestApp(glaucoma_risk_calculator_analytics_rest_api.routes.rest_api)
 
     def test_status(self):
         """ Not really needed, but whatever """
-        status_resp = self.app.get('/api/status').json
-        for k in status_resp.keys():
-            if k.endswith('_version'):
-                self.assertEqual(status_resp[k].count('.'), 2)
+        for s in ('/api', '/api/py', '/api/status'):
+            status_resp = self.app.get(s).json
+            for k in status_resp.keys():
+                if k.endswith('_version'):
+                    self.assertEqual(status_resp[k].count('.'), 2)
 
     def test_run(self):
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
-        actual_output = run(event_start, event_end)
+        actual_output = self.app.get('/api/py/analytics2',
+                                     params={'event_start': event_start, 'event_end': event_end}).json
 
         PrettyPrinter(indent=4).pprint(actual_output)
 

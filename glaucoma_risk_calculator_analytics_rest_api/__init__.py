@@ -14,3 +14,4 @@ rest_api = Bottle(catchall=True, autojson=True)
 redis = Redis(host=environ.get('REDIS_HOST', 'localhost'),
               port=int(environ.get('REDIS_PORT', 6379)),
               db=int(environ.get('REDIS_DB', 0)))
+is_test = False

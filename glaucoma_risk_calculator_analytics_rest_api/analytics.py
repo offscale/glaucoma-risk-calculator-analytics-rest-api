@@ -116,7 +116,7 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     :return: dictionary to show on endpoint
     :rtype: dict
     """
-    engine = create_engine(environ['RDBMS_URI'], echo=True)
+    engine = create_engine(environ['RDBMS_URI'], echo=False)
 
     survey_tbl = pd.read_sql_table('survey_tbl', engine)
     survey_tbl_count = len(survey_tbl.index)
@@ -499,7 +499,7 @@ def run_join_for_pred_query(engine, event_start, event_end):
     ''', index_col='id', con=engine, params={'event_start': event_start, 'event_end': event_end})
 
 
-def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
+def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
     """
     Runner
 
@@ -508,9 +508,6 @@ def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, dateti
 
     :param event_end: end datetime
     :type event_end: datetime
-
-    :param to_dict: Convert from Pandas formats to Python dictionary
-    :type to_dict: bool
 
     :return: dictionary to show on endpoint
     :rtype: dict

@@ -8,10 +8,12 @@ addons:
     apt:
         packages:
             - gyp
+            - cmake
+            - libomp-dev
 
 services:
     - postgresql
-    - redis-server
+    - redis
 
 install:
     - pip install -r requirements.txt

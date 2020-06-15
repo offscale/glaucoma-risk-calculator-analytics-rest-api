@@ -6,14 +6,14 @@ from platform import python_version_tuple
 
 from bottle import request, HTTPResponse
 
-from glaucoma_risk_calculator_analytics_rest_api import redis
+from glaucoma_risk_calculator_analytics_rest_api import is_test, redis
 
 
 def auth_needed(f):
     def inner(*args, **kwargs):
         token = request.get_header('X-Access-Token')
         # print('Got access token of', token, 'on endpoint', request.url, file=stderr)
-        if token is None or redis.get(token) is None:
+        if (token is None or redis.get(token) is None) and not is_test:
             return HTTPResponse(
                 body=dumps({'error': 'AuthError', 'error_message': 'Valid authentication required'}),
                 status=401, headers={'Content-type': 'application/json'})
