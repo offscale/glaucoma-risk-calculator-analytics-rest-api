@@ -3,7 +3,6 @@
 from datetime import datetime
 from json import dumps
 from platform import python_version_tuple
-from sys import stderr
 
 from bottle import request, HTTPResponse
 

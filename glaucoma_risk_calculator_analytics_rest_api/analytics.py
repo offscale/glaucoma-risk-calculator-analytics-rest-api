@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 
-from base64 import b64encode, encodestring, encodebytes
+from base64 import b64encode
 from datetime import datetime, timedelta
 from functools import partial
 from os import environ, path
@@ -586,6 +586,7 @@ def analytics3(event_start, event_end, to_dict=True):  # type: (datetime, dateti
         'big_xgb_gv': '{}'.format(big_xgb_gv),
         'feature_importance_gv': '{}'.format(feature_importance_gv)
     }
+
 
 # Average risk calculation
 # Use same sorts of statistics used in eLearning course
