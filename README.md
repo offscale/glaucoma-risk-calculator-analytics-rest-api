@@ -1,7 +1,7 @@
 glaucoma-risk-calculator-analytics-rest-api
 ===========================================
 [![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-![Python version](https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7-blue)
+![Python version](https://img.shields.io/badge/python-2.7%20%7C%203.4%20%7C%203.5%20%7C%203.6%20%7C%203.7%20%7C%203.8-blue)
 ![Python implementation](https://img.shields.io/badge/implementation-cpython-blue)
 [![Build Status](https://travis-ci.org/offscale/glaucoma-risk-calculator-analytics-rest-api.svg?branch=master)](https://travis-ci.org/offscale/glaucoma-risk-calculator-analytics-rest-api)
 [![Coverage Status](https://coveralls.io/repos/github/offscale/glaucoma-risk-calculator-analytics-rest-api/badge.svg)](https://coveralls.io/github/offscale/glaucoma-risk-calculator-analytics-rest-api)
