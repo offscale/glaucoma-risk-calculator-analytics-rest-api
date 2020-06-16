@@ -12,6 +12,7 @@ from sys import modules
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from bottle import response
 from pkg_resources import resource_filename
 from pytz import timezone, utc
 from six import iteritems
@@ -539,6 +540,13 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
 
     features = data_cat.loc[:, data_cat.columns != 'behaviour_change']
     label = data_cat['behaviour_change']
+
+    if features.size == 0 or label.size == 0:
+        response.status = 404
+        return {'error': 'XGBClassifier',
+                'error_message': 'features are of length {}; labels are of length: {}'.format(
+                    features.size, label.size
+                )}
 
     model = XGBClassifier()
     model.fit(features, label)

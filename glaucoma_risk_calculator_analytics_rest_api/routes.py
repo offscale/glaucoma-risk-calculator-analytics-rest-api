@@ -49,7 +49,7 @@ def analytics_body(function):
         event_start = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
         event_end = event_start + timedelta(hours=6, minutes=60)
     try:
-        return function(event_start, event_end, function)
+        return function(event_start, event_end)
     except ValueError as e:
         response.status = 400
         return {'error': e.__class__.__name__,
