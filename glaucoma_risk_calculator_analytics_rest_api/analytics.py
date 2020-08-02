@@ -16,12 +16,17 @@ from bottle import response
 from pkg_resources import resource_filename
 from pytz import timezone, utc
 from six import iteritems
+
 # import statsmodels as stats
 from sklearn.preprocessing import LabelEncoder
 from sqlalchemy import create_engine
 from xgboost import XGBClassifier, to_graphviz, plot_importance
 
-from glaucoma_risk_calculator_analytics_rest_api.utils import PY3, update_d, maybe_to_dict
+from glaucoma_risk_calculator_analytics_rest_api.utils import (
+    PY3,
+    update_d,
+    maybe_to_dict,
+)
 
 if PY3:
     from contextlib import redirect_stdout
@@ -33,7 +38,6 @@ else:
         from cStringIO import StringIO
     except ImportError:
         from StringIO import StringIO
-
 
     @contextmanager
     def capture():
@@ -49,25 +53,29 @@ else:
             out[0] = out[0].getvalue()
             out[1] = out[1].getvalue()
 
-'''
+
+"""
 emails = get_ipython().getoutput(
   'sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v \'{"email":null}|{"email":""}\' | wc -l'
 )
 # ^Ignore duplicated and null entries
 emails = int(emails[0]) + 60  # 60 collected independently by OPSM
 print('emails collected:'.ljust(just), emails)
-'''
+"""
 
 # Global variables FTW
 
 just = 20  # indentation
 
-parent_dir = path.dirname(resource_filename(modules[__name__].__name__.partition('.')[0], '__main__.py'))
-with open(path.join(parent_dir, '_data', 'joint_explosion.sql')) as f:
+parent_dir = path.dirname(
+    resource_filename(modules[__name__].__name__.partition(".")[0], "__main__.py")
+)
+with open(path.join(parent_dir, "_data", "joint_explosion.sql")) as f:
     joint_explosion_query = f.read()
 
 
 # /end global vars
+
 
 def run(event_start, event_end, function):  # type: (datetime, datetime) -> dict
     """
@@ -89,19 +97,25 @@ def run(event_start, event_end, function):  # type: (datetime, datetime) -> dict
         f = StringIO()
         with redirect_stdout(f):
             res = function(event_start, event_end)
-        res['_out'] = f.getvalue()
+        res["_out"] = f.getvalue()
     else:
         with capture() as out:
             res = function(event_start, event_end)
-            res['_out'] = out
+            res["_out"] = out
     return res
 
 
 # Server was in UTC, switch datetimes to Sydney
-sydney = utc.localize(datetime.utcfromtimestamp(1143408899)).astimezone(timezone('Australia/Sydney')).tzinfo
+sydney = (
+    utc.localize(datetime.utcfromtimestamp(1143408899))
+    .astimezone(timezone("Australia/Sydney"))
+    .tzinfo
+)
 
 
-def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, datetime, bool) -> dict
+def analytics2(
+    event_start, event_end, to_dict=True
+):  # type: (datetime, datetime, bool) -> dict
     """
     Runner
 
@@ -117,29 +131,29 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     :return: dictionary to show on endpoint
     :rtype: dict
     """
-    engine = create_engine(environ['RDBMS_URI'], echo=False)
+    engine = create_engine(environ["RDBMS_URI"], echo=False)
 
-    survey_tbl = pd.read_sql_table('survey_tbl', engine)
+    survey_tbl = pd.read_sql_table("survey_tbl", engine)
     survey_tbl_count = len(survey_tbl.index)
-    print('survey_tbl#:'.ljust(just), '{:0>3}'.format(survey_tbl_count))
+    print("survey_tbl#:".ljust(just), "{:0>3}".format(survey_tbl_count))
 
-    risk_res_tbl = pd.read_sql_table('risk_res_tbl', engine)
+    risk_res_tbl = pd.read_sql_table("risk_res_tbl", engine)
     risk_res_tbl_count = len(risk_res_tbl.index)
-    print('risk_res_tbl#:'.ljust(just), '{:0>3}'.format(risk_res_tbl_count))
+    print("risk_res_tbl#:".ljust(just), "{:0>3}".format(risk_res_tbl_count))
 
-    columns = 'createdAt', 'updatedAt'
+    columns = "createdAt", "updatedAt"
 
     for df in (survey_tbl, risk_res_tbl):
         for column in columns:
             try:
                 df[column] = df[column].dt.tz_convert(sydney)
             except TypeError as e:
-                if 'tz_localize' not in e.args[0]:
+                if "tz_localize" not in e.args[0]:
                     raise e
                 try:
-                    df[column] = df[column].dt.tz_localize('UTC').tz_convert(sydney)
+                    df[column] = df[column].dt.tz_localize("UTC").tz_convert(sydney)
                 except TypeError as err:
-                    if not environ.get('TRAVIS'):
+                    if not environ.get("TRAVIS"):
                         raise err
 
     event_start_iso = event_start.isoformat()
@@ -147,24 +161,31 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
 
     for column in columns:
         b4_filter = len(survey_tbl.index)
-        survey_tbl = survey_tbl.loc[(survey_tbl[column] > event_start)
-                                    & (survey_tbl[column] <= event_end)]
-        print('survey_tbl:'.ljust(just), '{:0>3d} (excluded using {!r})'.format(
-            b4_filter - len(survey_tbl.index),
-            column
-        ))
+        survey_tbl = survey_tbl.loc[
+            (survey_tbl[column] > event_start) & (survey_tbl[column] <= event_end)
+        ]
+        print(
+            "survey_tbl:".ljust(just),
+            "{:0>3d} (excluded using {!r})".format(
+                b4_filter - len(survey_tbl.index), column
+            ),
+        )
 
         b4_filter = len(risk_res_tbl.index)
-        risk_res_tbl = risk_res_tbl.loc[(risk_res_tbl[column] > event_start)
-                                        & (risk_res_tbl[column] <= event_end)]
-        print('risk_res_tbl:'.ljust(just), '{:0>3d} (excluded using {!r})'.format(
-            b4_filter - len(risk_res_tbl.index),
-            column
-        ))
+        risk_res_tbl = risk_res_tbl.loc[
+            (risk_res_tbl[column] > event_start) & (risk_res_tbl[column] <= event_end)
+        ]
+        print(
+            "risk_res_tbl:".ljust(just),
+            "{:0>3d} (excluded using {!r})".format(
+                b4_filter - len(risk_res_tbl.index), column
+            ),
+        )
 
     # survey_tbl.join(risk_res_tbl, on='risk_res_id')
 
-    joint = pd.read_sql_query('''
+    joint = pd.read_sql_query(
+        """
         SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
                r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id AS risk_id,
                r."createdAt", r."updatedAt", s.perceived_risk, s.recruiter,
@@ -173,39 +194,52 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
         FROM survey_tbl s
         FULL JOIN risk_res_tbl r
         ON s.risk_res_id = r.id;
-    ''', engine)
-    print('joint#:'.ljust(just), '{:0>3}'.format(len(joint.index)))
+    """,
+        engine,
+    )
+    print("joint#:".ljust(just), "{:0>3}".format(len(joint.index)))
 
-    step1_only_sql = pd.read_sql_query('''
+    step1_only_sql = pd.read_sql_query(
+        """
     SELECT *
     FROM survey_tbl s
     WHERE NOT EXISTS (SELECT *
                       FROM risk_res_tbl r
                       WHERE s.risk_res_id = r.id)
-    ''', engine)
-    print('step1_only_sql#:'.ljust(just), '{:0>3}'.format(len(step1_only_sql.index)))
+    """,
+        engine,
+    )
+    print("step1_only_sql#:".ljust(just), "{:0>3}".format(len(step1_only_sql.index)))
 
-    step1_only = survey_tbl[survey_tbl['risk_res_id'].isna() & survey_tbl['behaviour_change'].isna()]
-    step1_only_sql = pd.read_sql_query('''
+    step1_only = survey_tbl[
+        survey_tbl["risk_res_id"].isna() & survey_tbl["behaviour_change"].isna()
+    ]
+    step1_only_sql = pd.read_sql_query(
+        """
     SELECT COUNT(*)
     FROM survey_tbl s
     WHERE s.risk_res_id IS NULL
           AND s.behaviour_change IS NULL
           AND s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz;
-    ''', engine, params={'event_start': event_start, 'event_end': event_end})
-    step1_only_count, _s1 = len(step1_only.index), int(step1_only_sql['count'])
-    assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
-    print('step1_only#:'.ljust(just), '{:0>3}'.format(step1_only_count))
+    """,
+        engine,
+        params={"event_start": event_start, "event_end": event_end},
+    )
+    step1_only_count, _s1 = len(step1_only.index), int(step1_only_sql["count"])
+    assert step1_only_count == _s1, "{s0} != {s1}".format(s0=step1_only_count, s1=_s1)
+    print("step1_only#:".ljust(just), "{:0>3}".format(step1_only_count))
 
-    step2_only = survey_tbl[(survey_tbl['perceived_risk'].isna()
-                             & survey_tbl['risk_res_id'].notnull()
-                             & survey_tbl['behaviour_change'].isna()
-                             )]
-
-    step2_only = risk_res_tbl[
-        ~risk_res_tbl['id'].isin(survey_tbl['risk_res_id'])
+    step2_only = survey_tbl[
+        (
+            survey_tbl["perceived_risk"].isna()
+            & survey_tbl["risk_res_id"].notnull()
+            & survey_tbl["behaviour_change"].isna()
+        )
     ]
-    step2_only_sql = pd.read_sql_query('''
+
+    step2_only = risk_res_tbl[~risk_res_tbl["id"].isin(survey_tbl["risk_res_id"])]
+    step2_only_sql = pd.read_sql_query(
+        """
     SELECT COUNT(*)
     FROM risk_res_tbl r
     WHERE 
@@ -216,37 +250,50 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
                          SELECT risk_res_id
                          FROM survey_tbl s
                          WHERE s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz );
-    ''', engine, params={'event_start': event_start, 'event_end': event_end})
-    step2_only_count, _s1 = len(step2_only.index), int(step2_only_sql['count'])
+    """,
+        engine,
+        params={"event_start": event_start, "event_end": event_end},
+    )
+    step2_only_count, _s1 = len(step2_only.index), int(step2_only_sql["count"])
 
     # assert step1_only_count == _s1, '{s0} != {s1}'.format(s0=step1_only_count, s1=_s1)
-    print('step2_only#:'.ljust(just), '{:0>3}'.format(step2_only_count))
+    print("step2_only#:".ljust(just), "{:0>3}".format(step2_only_count))
 
-    step3_only = survey_tbl[survey_tbl['perceived_risk'].isna()
-                            & survey_tbl['risk_res_id'].isna()
-                            & survey_tbl['behaviour_change'].notnull()
-                            ]
-    step3_only_sql = pd.read_sql_query('''
+    step3_only = survey_tbl[
+        survey_tbl["perceived_risk"].isna()
+        & survey_tbl["risk_res_id"].isna()
+        & survey_tbl["behaviour_change"].notnull()
+    ]
+    step3_only_sql = pd.read_sql_query(
+        """
     SELECT COUNT(*)
     FROM survey_tbl s
     WHERE
            s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
            AND s.risk_res_id IS NULL
            AND s.perceived_risk IS NULL;
-    ''', engine, params={'event_start': event_start, 'event_end': event_end})
-    step3_only_count, _snd = len(step3_only['id'].index), int(step3_only_sql['count'])
-    assert step3_only_count == _snd, 'Expected {} == {}'.format(step3_only_count, _snd)
-    print('step3_only#:'.ljust(just), '{:0>3}'.format(step3_only_count))
+    """,
+        engine,
+        params={"event_start": event_start, "event_end": event_end},
+    )
+    step3_only_count, _snd = len(step3_only["id"].index), int(step3_only_sql["count"])
+    assert step3_only_count == _snd, "Expected {} == {}".format(step3_only_count, _snd)
+    print("step3_only#:".ljust(just), "{:0>3}".format(step3_only_count))
 
-    number_of_risk_res_ids_sql = pd.read_sql_query('''
+    number_of_risk_res_ids_sql = pd.read_sql_query(
+        """
     SELECT COUNT(risk_res_id)
     FROM survey_tbl s
     WHERE
           s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
             AND s.risk_res_id IS NOT NULL;
-    ''', engine, params={'event_start': event_start, 'event_end': event_end})
+    """,
+        engine,
+        params={"event_start": event_start, "event_end": event_end},
+    )
 
-    number_of_unique_risk_res_ids_sql = pd.read_sql_query('''
+    number_of_unique_risk_res_ids_sql = pd.read_sql_query(
+        """
     SELECT COUNT(*)
     FROM (SELECT DISTINCT risk_res_id
           FROM survey_tbl s
@@ -254,57 +301,73 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
               s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
                 AND s.risk_res_id IS NOT NULL
           ) AS C;
-    ''', engine, params={'event_start': event_start, 'event_end': event_end})
+    """,
+        engine,
+        params={"event_start": event_start, "event_end": event_end},
+    )
 
-    number_of_risk_res_ids = survey_tbl[
-        survey_tbl['risk_res_id'].notnull()
-    ]['risk_res_id'].size
+    number_of_risk_res_ids = survey_tbl[survey_tbl["risk_res_id"].notnull()][
+        "risk_res_id"
+    ].size
 
-    _fst, _snd, _thd = (int(number_of_risk_res_ids_sql['count']), number_of_risk_res_ids,
-                        int(number_of_unique_risk_res_ids_sql['count']))
+    _fst, _snd, _thd = (
+        int(number_of_risk_res_ids_sql["count"]),
+        number_of_risk_res_ids,
+        int(number_of_unique_risk_res_ids_sql["count"]),
+    )
     try:
-        assert _fst == _snd == _thd, 'Expected {} == {} == {}'.format(_fst, _snd, _thd)
+        assert _fst == _snd == _thd, "Expected {} == {} == {}".format(_fst, _snd, _thd)
     except AssertionError:
-        assert _fst == _snd == _thd + 1, 'Expected {} == {} == {}'.format(_fst, _snd, _thd + 1)
-    print('risk_res_ids#:'.ljust(just), '{:0>3}'.format(number_of_risk_res_ids))
+        assert _fst == _snd == _thd + 1, "Expected {} == {} == {}".format(
+            _fst, _snd, _thd + 1
+        )
+    print("risk_res_ids#:".ljust(just), "{:0>3}".format(number_of_risk_res_ids))
 
-    print('event_start_iso:    ', event_start_iso, '\nevent_end_iso:      ', event_end_iso)
+    print(
+        "event_start_iso:    ", event_start_iso, "\nevent_end_iso:      ", event_end_iso
+    )
 
-    step1_and_2 = survey_tbl[survey_tbl['perceived_risk'].notnull()
-                             & survey_tbl['risk_res_id'].notnull()
-                             & survey_tbl['behaviour_change'].isna()
-                             ]
-    print('step1_and_2#:'.ljust(just), '{:0>3}'.format(len(step1_and_2.index)))
+    step1_and_2 = survey_tbl[
+        survey_tbl["perceived_risk"].notnull()
+        & survey_tbl["risk_res_id"].notnull()
+        & survey_tbl["behaviour_change"].isna()
+    ]
+    print("step1_and_2#:".ljust(just), "{:0>3}".format(len(step1_and_2.index)))
 
-    step1_and_3 = survey_tbl[survey_tbl['perceived_risk'].notnull()
-                             & survey_tbl['risk_res_id'].isna()
-                             & survey_tbl['behaviour_change'].notnull()
-                             ]
-    print('step1_and_3#:'.ljust(just), '{:0>3}'.format(len(step1_and_3.index)))
+    step1_and_3 = survey_tbl[
+        survey_tbl["perceived_risk"].notnull()
+        & survey_tbl["risk_res_id"].isna()
+        & survey_tbl["behaviour_change"].notnull()
+    ]
+    print("step1_and_3#:".ljust(just), "{:0>3}".format(len(step1_and_3.index)))
 
-    step2_and_1 = survey_tbl[survey_tbl['perceived_risk'].notnull()
-                             & survey_tbl['risk_res_id'].notnull()
-                             & survey_tbl['behaviour_change'].isna()
-                             ]
-    print('step2_and_1#:'.ljust(just), '{:0>3}'.format(len(step2_and_1.index)))
+    step2_and_1 = survey_tbl[
+        survey_tbl["perceived_risk"].notnull()
+        & survey_tbl["risk_res_id"].notnull()
+        & survey_tbl["behaviour_change"].isna()
+    ]
+    print("step2_and_1#:".ljust(just), "{:0>3}".format(len(step2_and_1.index)))
 
-    step2_and_3 = survey_tbl[survey_tbl['perceived_risk'].notnull()
-                             & survey_tbl['risk_res_id'].notnull()
-                             & survey_tbl['behaviour_change'].notnull()
-                             ]
-    print('step2_and_3#:'.ljust(just), '{:0>3}'.format(len(step2_and_3.index)))
+    step2_and_3 = survey_tbl[
+        survey_tbl["perceived_risk"].notnull()
+        & survey_tbl["risk_res_id"].notnull()
+        & survey_tbl["behaviour_change"].notnull()
+    ]
+    print("step2_and_3#:".ljust(just), "{:0>3}".format(len(step2_and_3.index)))
 
-    step3_and_1 = survey_tbl[survey_tbl['perceived_risk'].isna()
-                             & survey_tbl['risk_res_id'].notnull()
-                             & survey_tbl['behaviour_change'].notnull()
-                             ]
-    print('step3_and_1#:'.ljust(just), '{:0>3}'.format(len(step3_and_1.index)))
+    step3_and_1 = survey_tbl[
+        survey_tbl["perceived_risk"].isna()
+        & survey_tbl["risk_res_id"].notnull()
+        & survey_tbl["behaviour_change"].notnull()
+    ]
+    print("step3_and_1#:".ljust(just), "{:0>3}".format(len(step3_and_1.index)))
 
-    step3_and_2 = survey_tbl[survey_tbl['perceived_risk'].notnull()
-                             & survey_tbl['risk_res_id'].isna()
-                             & survey_tbl['behaviour_change'].notnull()
-                             ]
-    print('step3_and_2#:'.ljust(just), '{:0>3}'.format(len(step3_and_2.index)))
+    step3_and_2 = survey_tbl[
+        survey_tbl["perceived_risk"].notnull()
+        & survey_tbl["risk_res_id"].isna()
+        & survey_tbl["behaviour_change"].notnull()
+    ]
+    print("step3_and_2#:".ljust(just), "{:0>3}".format(len(step3_and_2.index)))
 
     def cover_fn(collection):  # type: (tuple) -> int
         return sum(map(lambda s: len(s.index), collection))
@@ -315,29 +378,36 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
 
     step3_cover = cover_fn((step3_only, step3_and_1, step3_and_2))
 
-    all_steps = survey_tbl[survey_tbl['perceived_risk'].notnull()
-                           & survey_tbl['behaviour_change'].notnull()
-                           & survey_tbl['risk_res_id'].notnull()
-                           ]
+    all_steps = survey_tbl[
+        survey_tbl["perceived_risk"].notnull()
+        & survey_tbl["behaviour_change"].notnull()
+        & survey_tbl["risk_res_id"].notnull()
+    ]
     all_steps_count = len(all_steps.index)
 
     all_or_one = cover_fn((step1_only, step2_only, step3_only, all_steps))
 
     total = float(all_or_one + cover_fn((step1_and_2, step1_and_3, step2_and_3)))
 
-    merged = survey_tbl.merge(risk_res_tbl,
-                              left_on='risk_res_id',
-                              right_on='id',
-                              suffixes=('_survey', '_risk'))
+    merged = survey_tbl.merge(
+        risk_res_tbl,
+        left_on="risk_res_id",
+        right_on="id",
+        suffixes=("_survey", "_risk"),
+    )
 
     joint_for_pred = run_join_for_pred_query(engine, event_start, event_end)
 
-    print('\nThe following includes only records that completed all 3 steps:')
-    print('joint_for_pred#:'.ljust(just), '{:0>3}'.format(len(joint_for_pred.index)))
+    print("\nThe following includes only records that completed all 3 steps:")
+    print("joint_for_pred#:".ljust(just), "{:0>3}".format(len(joint_for_pred.index)))
 
-    _joint_for_pred_3cols = joint_for_pred[['client_risk_mag', 'perceived_risk_mag', 'behaviour_change']]
-    join_for_pred_unique_cols = {column: _joint_for_pred_3cols[column].value_counts().to_dict()
-                                 for column in _joint_for_pred_3cols}
+    _joint_for_pred_3cols = joint_for_pred[
+        ["client_risk_mag", "perceived_risk_mag", "behaviour_change"]
+    ]
+    join_for_pred_unique_cols = {
+        column: _joint_for_pred_3cols[column].value_counts().to_dict()
+        for column in _joint_for_pred_3cols
+    }
 
     # joint_for_pred[joint_for_pred[''] == '']
     # ethnicities = (lambda array: array.to_list() if to_dict else array)(
@@ -345,30 +415,34 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     # )
 
     joint_explosion = pd.read_sql_query(
-        joint_explosion_query
-            .replace('\'EVENT_START\'', '%(event_start)s::timestamptz')
-            .replace('\'EVENT_END\'', '%(event_end)s::timestamptz'),
-        engine, 'id', params={'event_start': event_start, 'event_end': event_end}
+        joint_explosion_query.replace(
+            "'EVENT_START'", "%(event_start)s::timestamptz"
+        ).replace("'EVENT_END'", "%(event_end)s::timestamptz"),
+        engine,
+        "id",
+        params={"event_start": event_start, "event_end": event_end},
     )
 
     expl_cat_df = joint_explosion[
-        [col for col in joint_explosion.columns
-         if '::' in col]
+        [col for col in joint_explosion.columns if "::" in col]
     ]
 
     name2variant_value = {}
     for col in expl_cat_df:
-        name, variant = col.split('::')
+        name, variant = col.split("::")
         value = (lambda vc: True in vc.index and vc.loc[True] or 0)(
             expl_cat_df[col].value_counts()
         )
         total = int(value.sum()) if value > 0 else value
-        with open('/tmp/v.txt', 'a') as f:
-            f.write('value: {} ;\n'.format(value))
+        with open("/tmp/v.txt", "a") as f:
+            f.write("value: {} ;\n".format(value))
 
         if name not in name2variant_value:
-            name2variant_value[name] = {variant: int(value), 'Total': int(total)} if to_dict \
-                else {variant: value, 'Total': total}
+            name2variant_value[name] = (
+                {variant: int(value), "Total": int(total)}
+                if to_dict
+                else {variant: value, "Total": total}
+            )
         else:
             name2variant_value[name][variant] = int(value) if to_dict else value
 
@@ -376,30 +450,32 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     for name, variant_value in iteritems(name2variant_value):
         total = 0
         for variant, value in iteritems(variant_value):
-            if variant != 'Total':
+            if variant != "Total":
                 total += value
-        name2variant_value[name]['Total'] = total
+        name2variant_value[name]["Total"] = total
 
     def add_percentage(d):
         for key, val in iteritems(d):
-            if 'Total' not in val:
+            if "Total" not in val:
                 return d
             for k, v in iteritems(val):
-                if k != 'Total':
-                    print('val:', val)
-                    print('v:', v)
-                    print("val['Total']", val['Total'])
+                if k != "Total":
+                    print("val:", val)
+                    print("v:", v)
+                    print("val['Total']", val["Total"])
                     d[key][k] = {
-                        'percentage': np.multiply(
-                            np.true_divide(np.float64(v),
-                                           np.float64(val['Total'])),
-                            np.float64(100)) if np.isnan(val['Total']) and val['Total'] > 0 else 0,
-                        'value': v
+                        "percentage": np.multiply(
+                            np.true_divide(np.float64(v), np.float64(val["Total"])),
+                            np.float64(100),
+                        )
+                        if np.isnan(val["Total"]) and val["Total"] > 0
+                        else 0,
+                        "value": v,
                     }
 
         return d
 
-    '''
+    """
 
     print('Of the {survey_count:d} entries:\n'
           u'\u2022 {step1_count:0>3d} completed just step 1;\n'
@@ -410,18 +486,28 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
           'Some notable statistics:\n'
           u'\u2022 {completed:.2%} completed the final step; and\n'
           u'\u2022 {email_conversion:.2%} converted (provided their emails).'.format(
-    '''
+    """
 
-    '''emails = !sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v '{"email":null}|{"email":""}' | wc -l
+    """emails = !sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v '{"email":null}|{"email":""}' | wc -l
     # ^Ignore duplicated and null entries
     emails = int(emails[0]) + 60  # 60 collected independently by OPSM
-    '''
+    """
 
-    emails_txt_fname = path.join(environ.get('GLAUCOMA_DATADIR', 'glaucoma-risk-calculator-datadir'), 'emails.txt')
+    emails_txt_fname = path.join(
+        environ.get("GLAUCOMA_DATADIR", "glaucoma-risk-calculator-datadir"),
+        "emails.txt",
+    )
     if path.exists(emails_txt_fname):
-        with open(emails_txt_fname, 'rt') as f:
-            emails = len(frozenset(filter(lambda line: line not in frozenset(('{"email":null}', '{"email":""}')),
-                                          map(lambda line: line.strip(), f.readlines()))))
+        with open(emails_txt_fname, "rt") as f:
+            emails = len(
+                frozenset(
+                    filter(
+                        lambda line: line
+                        not in frozenset(('{"email":null}', '{"email":""}')),
+                        map(lambda line: line.strip(), f.readlines()),
+                    )
+                )
+            )
     else:
         emails = 169
 
@@ -434,34 +520,44 @@ def analytics2(event_start, event_end, to_dict=True):  # type: (datetime, dateti
     maybe2dict = partial(maybe_to_dict, to_dict=to_dict)
 
     return {
-        'survey_count': total,
+        "survey_count": total,
         # survey_tbl[survey_tbl['risk_res_id'].isna()]['id'].size
         # + step2_count
         # + joint['id'].size
         # ,
-        'step1_count': step1_only_count,
-        'step2_count': step2_only_count,
-        'step3_count': step3_only_count,
-        'some_combination': cover_fn((step1_and_2, step1_and_3, step2_and_3)),
-        'all_steps': all_steps_count,
-        'email_conversion': email_conversion,
-        'completed': completed,
-        'emails': emails,
-        'joint_explosion': maybe2dict(joint_explosion),
-        'join_for_pred_unique_cols': join_for_pred_unique_cols,
-        'joint_for_pred': maybe2dict(joint_for_pred),
-        'counts': add_percentage(update_d({
-            column: (lambda p: update_d(
-                p.to_dict(),
-                {'Total': int(p.sum())}
-            ))(joint_for_pred[column].value_counts())
-            for column in ('gender', 'age_mag', 'client_risk_mag', 'behaviour_change')
-        }, ethnicity=name2variant_value['ethnicity']))
+        "step1_count": step1_only_count,
+        "step2_count": step2_only_count,
+        "step3_count": step3_only_count,
+        "some_combination": cover_fn((step1_and_2, step1_and_3, step2_and_3)),
+        "all_steps": all_steps_count,
+        "email_conversion": email_conversion,
+        "completed": completed,
+        "emails": emails,
+        "joint_explosion": maybe2dict(joint_explosion),
+        "join_for_pred_unique_cols": join_for_pred_unique_cols,
+        "joint_for_pred": maybe2dict(joint_for_pred),
+        "counts": add_percentage(
+            update_d(
+                {
+                    column: (lambda p: update_d(p.to_dict(), {"Total": int(p.sum())}))(
+                        joint_for_pred[column].value_counts()
+                    )
+                    for column in (
+                        "gender",
+                        "age_mag",
+                        "client_risk_mag",
+                        "behaviour_change",
+                    )
+                },
+                ethnicity=name2variant_value["ethnicity"],
+            )
+        ),
     }
 
 
 def run_join_for_pred_query(engine, event_start, event_end):
-    return pd.read_sql_query('''
+    return pd.read_sql_query(
+        """
         WITH joint AS (
             SELECT r.age, r.client_risk, r.gender, r.ethnicity, r.other_info, r.email,
                    r.sibling, r.parent, r.study, r.myopia, r.diabetes, r.id AS risk_id,
@@ -497,7 +593,11 @@ def run_join_for_pred_query(engine, event_start, event_end):
         WHERE     created BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
               AND updated BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
         ORDER BY client_risk, perceived_risk;
-    ''', index_col='id', con=engine, params={'event_start': event_start, 'event_end': event_end})
+    """,
+        index_col="id",
+        con=engine,
+        params={"event_start": event_start, "event_end": event_end},
+    )
 
 
 def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
@@ -516,47 +616,55 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
     # event_start_iso = event_start.isoformat()
     # event_end_iso = event_end.isoformat()
 
-    engine = create_engine(environ['RDBMS_URI'])
+    engine = create_engine(environ["RDBMS_URI"])
 
     join_for_pred = run_join_for_pred_query(engine, event_start, event_end)
     join_for_pred = join_for_pred.reset_index()
-    join_for_pred = join_for_pred.loc[:, join_for_pred.columns != 'index']
+    join_for_pred = join_for_pred.loc[:, join_for_pred.columns != "index"]
 
-    del join_for_pred['id']
+    del join_for_pred["id"]
 
-    join_for_pred.rename(columns={'perceived_risk': 'perception'})
+    join_for_pred.rename(columns={"perceived_risk": "perception"})
 
-    cat_df = join_for_pred.loc[:, join_for_pred.columns != 'age']  # creating a dataset only for categorical variables
-    cat_df = cat_df.loc[:, cat_df.columns != 'client_risk']
+    cat_df = join_for_pred.loc[
+        :, join_for_pred.columns != "age"
+    ]  # creating a dataset only for categorical variables
+    cat_df = cat_df.loc[:, cat_df.columns != "client_risk"]
 
     le = LabelEncoder()
-    enc_df = pd.DataFrame({column: le.fit_transform(cat_df[column])
-                           for column in cat_df})
+    enc_df = pd.DataFrame(
+        {column: le.fit_transform(cat_df[column]) for column in cat_df}
+    )
     # append the age and client_risk columns onto the categorical dataframe
     # we can do this since label encoding maintains row order
     data_cat = enc_df
-    data_cat['age'] = join_for_pred['age']
-    data_cat['client_risk'] = join_for_pred['client_risk']
+    data_cat["age"] = join_for_pred["age"]
+    data_cat["client_risk"] = join_for_pred["client_risk"]
 
-    features = data_cat.loc[:, data_cat.columns != 'behaviour_change']
-    label = data_cat['behaviour_change']
+    features = data_cat.loc[:, data_cat.columns != "behaviour_change"]
+    label = data_cat["behaviour_change"]
 
     if features.size == 0 or label.size == 0:
         response.status = 404
-        return {'error': 'XGBClassifier',
-                'error_message': 'features are of length {}; labels are of length: {}'.format(
-                    features.size, label.size
-                )}
+        return {
+            "error": "XGBClassifier",
+            "error_message": "features are of length {}; labels are of length: {}".format(
+                features.size, label.size
+            ),
+        }
 
     model = XGBClassifier()
     model.fit(features, label)
 
-    def booster2graphviz(booster, fmap='', num_trees=0, rankdir='UT', ax=None, **kwargs):
+    def booster2graphviz(
+        booster, fmap="", num_trees=0, rankdir="UT", ax=None, **kwargs
+    ):
         if ax is None:
             _, ax = plt.subplots(1, 1)
 
-        return to_graphviz(booster, fmap=fmap, num_trees=num_trees,
-                           rankdir=rankdir, **kwargs)
+        return to_graphviz(
+            booster, fmap=fmap, num_trees=num_trees, rankdir=rankdir, **kwargs
+        )
 
     big_xgb_gv = booster2graphviz(model)
 
@@ -570,14 +678,14 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
             print(e)
 
     sio = StringIO()
-    plt.savefig(sio, format='svg')
+    plt.savefig(sio, format="svg")
     sio.seek(0)
-    feature_importance_gv = '{}'.format(b64encode(sio.read().encode('utf-8')))[2:-1]
+    feature_importance_gv = "{}".format(b64encode(sio.read().encode("utf-8")))[2:-1]
     # feature_importance_gv['plot_importance(model)'] = '{}'.format(plot_importance(model))
 
     return {
-        'big_xgb_gv': '{}'.format(big_xgb_gv),
-        'feature_importance_gv': '{}'.format(feature_importance_gv)
+        "big_xgb_gv": "{}".format(big_xgb_gv),
+        "feature_importance_gv": "{}".format(feature_importance_gv),
     }
 
 
@@ -587,7 +695,7 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
 # Stratify by ethnicity to see what demography does to outcome measures
 # t-test and t-test between groups
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     event_start_at = datetime(year=2019, month=3, day=11, hour=8, tzinfo=sydney)
     event_end_at = event_start_at + timedelta(hours=6, minutes=60)
     run_output = run(event_start_at, event_end_at)

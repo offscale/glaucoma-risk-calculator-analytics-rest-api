@@ -8,24 +8,30 @@ from platform import python_version_tuple
 
 from setuptools import setup, find_packages
 
-if python_version_tuple()[0] == '3':
+if python_version_tuple()[0] == "3":
     imap = map
     ifilter = filter
 else:
     from itertools import imap, ifilter
 
-if __name__ == '__main__':
-    package_name = 'glaucoma_risk_calculator_analytics_rest_api'
+if __name__ == "__main__":
+    package_name = "glaucoma_risk_calculator_analytics_rest_api"
 
-    with open(path.join(package_name, '__init__.py')) as f:
+    with open(path.join(package_name, "__init__.py")) as f:
         __author__, __version__ = imap(
             lambda buf: next(imap(lambda e: e.value.s, parse(buf).body)),
-            ifilter(lambda line: line.startswith('__version__') or line.startswith('__author__'), f)
+            ifilter(
+                lambda line: line.startswith("__version__")
+                or line.startswith("__author__"),
+                f,
+            ),
         )
 
-    to_funcs = lambda *paths: (partial(path.join, path.dirname(__file__), package_name, *paths),
-                               partial(path.join, get_python_lib(prefix=''), package_name, *paths))
-    _data_join, _data_install_dir = to_funcs('_data')
+    to_funcs = lambda *paths: (
+        partial(path.join, path.dirname(__file__), package_name, *paths),
+        partial(path.join, get_python_lib(prefix=""), package_name, *paths),
+    )
+    _data_join, _data_install_dir = to_funcs("_data")
 
     setup(
         name=package_name,
@@ -34,5 +40,5 @@ if __name__ == '__main__':
         # test_suite=package_name + '.tests',
         packages=find_packages(),
         package_dir={package_name: package_name},
-        data_files=[(_data_install_dir(), map(_data_join, listdir(_data_join())))]
+        data_files=[(_data_install_dir(), map(_data_join, listdir(_data_join())))],
     )
