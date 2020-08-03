@@ -74,9 +74,11 @@ class TestRestApi(TestCase):
             res = glaucoma_risk_calculator_analytics_rest_api.analytics.analytics3(
                 self.event_start, self.event_end
             )
+
         # with open(os.path.join(os.path.dirname(__file__), 'delme.svg'), 'wb') as f:
         #     f.write(base64.decodebytes(bytearray(res['feature_importance_gv'], 'utf8')))
-        if environ.get("TRAVIS"):
+
+        if "TRAVIS" in environ:
             self.assertDictEqual(
                 {
                     "error": "XGBClassifier",
@@ -90,8 +92,7 @@ class TestRestApi(TestCase):
 
     def test_run(self):
         sio = StringIO()
-        with patch("sys.stdout",
-                                                                                       new_callable=lambda: sio):
+        with patch("sys.stdout", new_callable=lambda: sio):
             self.test_analytics2(
                 self.app.get(
                     "/api/py/analytics2",
@@ -101,6 +102,7 @@ class TestRestApi(TestCase):
                     },
                 ).json
             )
+
         self.test_analytics3(
             self.app.get(
                 "/api/py/analytics3",
@@ -108,6 +110,7 @@ class TestRestApi(TestCase):
                     "startDatetime": self.event_start,
                     "endDatetime": self.event_end,
                 },
+                expect_errors="TRAVIS" in environ,
             ).json
         )
 
