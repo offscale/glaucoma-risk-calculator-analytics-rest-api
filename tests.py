@@ -4,8 +4,13 @@ from __future__ import print_function
 
 from datetime import datetime, timedelta
 from os import environ
+from platform import python_version_tuple
 from unittest import TestCase, main as unittest_main
-from unittest.mock import patch
+
+if python_version_tuple()[0] == "3":
+    from unittest.mock import patch
+else:
+    from mock import patch
 
 from six import StringIO
 from webtest import TestApp
@@ -19,12 +24,13 @@ from glaucoma_risk_calculator_analytics_rest_api.analytics import sydney
 
 
 class TestRestApi(TestCase):
-    app = TestApp(
-        glaucoma_risk_calculator_analytics_rest_api.routes.rest_api,
-        extra_environ={"TEST_MODE": "true"},
-    )
-    event_start = datetime(year=2018, month=3, day=11, hour=8, tzinfo=sydney)
-    event_end = event_start + timedelta(days=720)
+    def setUp(self):
+        self.app = TestApp(
+            glaucoma_risk_calculator_analytics_rest_api.routes.rest_api,
+            extra_environ={"TEST_MODE": "true"},
+        )
+        self.event_start = datetime(year=2018, month=3, day=11, hour=8, tzinfo=sydney)
+        self.event_end = self.event_start + timedelta(days=720)
 
     def test_status(self):
         """ Not really needed, but whatever """
@@ -42,22 +48,26 @@ class TestRestApi(TestCase):
                     self.event_start, self.event_end
                 )
 
-        for key in (
-            "survey_count",
-            "step1_count",
-            "step2_count",
-            "step3_count",
-            "some_combination",
-            "all_steps",
-            "email_conversion",
-            "completed",
-            "emails",
-            "joint_explosion",
-            "join_for_pred_unique_cols",
-            "joint_for_pred",
-            "counts",
-        ):
-            self.assertIn(key, res)
+        self.assertSetEqual(
+            frozenset(res.keys()),
+            frozenset(
+                (
+                    "survey_count",
+                    "step1_count",
+                    "step2_count",
+                    "step3_count",
+                    "some_combination",
+                    "all_steps",
+                    "email_conversion",
+                    "completed",
+                    "emails",
+                    "joint_explosion",
+                    "join_for_pred_unique_cols",
+                    "joint_for_pred",
+                    "counts",
+                )
+            ),
+        )
 
     def test_analytics3(self, res=None):
         if res is None:
@@ -80,7 +90,8 @@ class TestRestApi(TestCase):
 
     def test_run(self):
         sio = StringIO()
-        with patch("sys.stdout", new_callable=lambda: sio):
+        with patch("sys.stdout",
+                                                                                       new_callable=lambda: sio):
             self.test_analytics2(
                 self.app.get(
                     "/api/py/analytics2",
