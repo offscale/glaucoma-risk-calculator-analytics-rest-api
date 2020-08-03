@@ -9,8 +9,8 @@ from bottle import request, HTTPResponse
 
 from glaucoma_risk_calculator_analytics_rest_api import is_test, redis
 
-
 pp = PrettyPrinter(indent=4).pprint
+
 
 def auth_needed(f):
     def inner(*args, **kwargs):

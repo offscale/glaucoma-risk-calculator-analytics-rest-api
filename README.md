@@ -5,6 +5,7 @@ glaucoma-risk-calculator-analytics-rest-api
 ![Python implementation](https://img.shields.io/badge/implementation-cpython-blue)
 [![Build Status](https://travis-ci.org/offscale/glaucoma-risk-calculator-analytics-rest-api.svg?branch=master)](https://travis-ci.org/offscale/glaucoma-risk-calculator-analytics-rest-api)
 [![Coverage Status](https://coveralls.io/repos/github/offscale/glaucoma-risk-calculator-analytics-rest-api/badge.svg)](https://coveralls.io/github/offscale/glaucoma-risk-calculator-analytics-rest-api)
+[![black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 Python API for Glaucoma Risk Calculator analytics.
 

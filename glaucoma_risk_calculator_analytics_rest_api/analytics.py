@@ -16,7 +16,6 @@ from bottle import response
 from pkg_resources import resource_filename
 from pytz import timezone, utc
 from six import iteritems
-
 # import statsmodels as stats
 from sklearn.preprocessing import LabelEncoder
 from sqlalchemy import create_engine
@@ -468,7 +467,7 @@ def analytics2(
                             np.true_divide(np.float64(v), np.float64(val["Total"])),
                             np.float64(100),
                         )
-                        if np.isnan(val["Total"]) and val["Total"] > 0
+                        if not np.isnan(val["Total"]) and val["Total"] > 0
                         else 0,
                         "value": v,
                     }
@@ -671,11 +670,16 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
     feature_importance_gv = {}
     k = plot_importance(model)
     k.plot()
+    """
     for f in dir(k):
+        print('plot_importance.{}'.format(f), end='')
         try:
             feature_importance_gv[f] = getattr(plot_importance, f)()
+            print(feature_importance_gv[f])
         except Exception as e:
-            print(e)
+            pass
+            #print(e)
+    """
 
     sio = StringIO()
     plt.savefig(sio, format="svg")
