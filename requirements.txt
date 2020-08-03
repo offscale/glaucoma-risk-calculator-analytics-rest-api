@@ -6,20 +6,18 @@ cython
 pandas
 pytz
 psycopg2
-gunicorn
-python-dateutil
-scipy
-sklearn
+#gunicorn
+#python-dateutil
+#scipy
+scikit-learn
 matplotlib
-seaborn
-statsmodels
+#seaborn
+#statsmodels
 xgboost
-mpld3
+#mpld3
 graphviz
 
 # TensorFlow
-requests
-tensorflow
-tensorflow_probability
-requests
-webtest
+#tensorflow
+#tensorflow_probability
+#requests
