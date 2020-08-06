@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 
+import xml.etree.ElementTree as ET
 from base64 import b64encode
 from datetime import datetime, timedelta
 from functools import partial
@@ -663,7 +664,7 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
 
         return to_graphviz(
             booster, fmap=fmap, num_trees=num_trees, rankdir=rankdir, **kwargs
-        )
+        ).source
 
     big_xgb_gv = booster2graphviz(model)
 
@@ -684,12 +685,18 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
     sio = StringIO()
     plt.savefig(sio, format="svg")
     sio.seek(0)
-    feature_importance_gv = "{}".format(b64encode(sio.read().encode("utf-8")))[2:-1]
+    s = sio.read().encode("utf-8")
+
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    feature_importance_gv = b64encode(
+        ET.tostring(next(next(ET.fromstring(s).iter()).iter()))
+    ).decode("utf8")
     # feature_importance_gv['plot_importance(model)'] = '{}'.format(plot_importance(model))
 
     return {
         "big_xgb_gv": "{}".format(big_xgb_gv),
-        "feature_importance_gv": "{}".format(feature_importance_gv),
+        "feature_importance_gv": feature_importance_gv,  # ET.tostring(next(next(ET.fromstring(s).iter()).iter()), 'b64'), #"{}".format(feature_importance_gv),
     }
 
 
