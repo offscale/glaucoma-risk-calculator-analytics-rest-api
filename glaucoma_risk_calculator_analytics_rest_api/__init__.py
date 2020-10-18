@@ -6,7 +6,7 @@ from bottle import Bottle
 from redis import Redis
 
 __author__ = "Samuel Marks <@SamuelMarks>"
-__version__ = "0.0.21"
+__version__ = "0.0.22"
 
 environ["RDBMS_URI"] = environ["RDBMS_URI"].replace("postgres://", "postgresql://")
 

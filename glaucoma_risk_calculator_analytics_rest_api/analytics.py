@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from bottle import response
+from graphviz import Source
 from pkg_resources import resource_filename
 from pytz import timezone, utc
 from six import iteritems
@@ -249,8 +250,7 @@ def analytics2(
                          EXCEPT
                          SELECT risk_res_id
                          FROM survey_tbl s
-                         WHERE s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz );
-    """,
+                         WHERE s."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz );""",
         engine,
         params={"event_start": event_start, "event_end": event_end},
     )
@@ -372,11 +372,13 @@ def analytics2(
     def cover_fn(collection):  # type: (tuple) -> int
         return sum(map(lambda s: len(s.index), collection))
 
+    """
     step1_cover = cover_fn((step1_only, step1_and_2, step1_and_3))
 
     step2_cover = cover_fn((step2_only, step2_and_1, step2_and_3))
 
     step3_cover = cover_fn((step3_only, step3_and_1, step3_and_2))
+    """
 
     all_steps = survey_tbl[
         survey_tbl["perceived_risk"].notnull()
@@ -389,12 +391,14 @@ def analytics2(
 
     total = float(all_or_one + cover_fn((step1_and_2, step1_and_3, step2_and_3)))
 
+    """
     merged = survey_tbl.merge(
         risk_res_tbl,
         left_on="risk_res_id",
         right_on="id",
         suffixes=("_survey", "_risk"),
     )
+    """
 
     joint_for_pred = run_join_for_pred_query(engine, event_start, event_end)
 
@@ -666,37 +670,37 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
             booster, fmap=fmap, num_trees=num_trees, rankdir=rankdir, **kwargs
         ).source
 
-    big_xgb_gv = booster2graphviz(model)
+    # Frontend Graphviz no longer works, so just give SVG
+    big_xgb_gv = Source(booster2graphviz(model), format="svg").pipe().decode("utf-8")
+    big_xgb_gv_xml = ET.fromstring(big_xgb_gv)
+    big_xgb_gv_xml.attrib["width"] = "100%"
 
-    feature_importance_gv = {}
-    k = plot_importance(model)
-    k.plot()
-    """
-    for f in dir(k):
-        print('plot_importance.{}'.format(f), end='')
-        try:
-            feature_importance_gv[f] = getattr(plot_importance, f)()
-            print(feature_importance_gv[f])
-        except Exception as e:
-            pass
-            #print(e)
-    """
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    big_xgb_gv = b64encode(ET.tostring(big_xgb_gv_xml, "utf-8")).decode("utf8")
+
+    feature_importance_gv_mpl = plot_importance(model)
+    feature_importance_gv_mpl.plot()
 
     sio = StringIO()
     plt.savefig(sio, format="svg")
     sio.seek(0)
-    s = sio.read().encode("utf-8")
+    feature_importance_gv_str = sio.read().encode("utf-8")
 
     ET.register_namespace("", "http://www.w3.org/2000/svg")
     ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-    feature_importance_gv = b64encode(
-        ET.tostring(next(next(ET.fromstring(s).iter()).iter()))
-    ).decode("utf8")
+    feature_importance_gv_xml = next(
+        next(ET.fromstring(feature_importance_gv_str).iter()).iter()
+    )
+    feature_importance_gv_xml.attrib.update({"height": "100%", "width": "100%"})
+    feature_importance_gv = b64encode(ET.tostring(feature_importance_gv_xml)).decode(
+        "utf8"
+    )
     # feature_importance_gv['plot_importance(model)'] = '{}'.format(plot_importance(model))
 
     return {
-        "big_xgb_gv": "{}".format(big_xgb_gv),
-        "feature_importance_gv": feature_importance_gv,  # ET.tostring(next(next(ET.fromstring(s).iter()).iter()), 'b64'), #"{}".format(feature_importance_gv),
+        "big_xgb_gv": big_xgb_gv,
+        "feature_importance_gv": feature_importance_gv,
     }
 
 
