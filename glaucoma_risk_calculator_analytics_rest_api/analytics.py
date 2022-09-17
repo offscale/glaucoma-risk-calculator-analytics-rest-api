@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
 
 from __future__ import print_function
 
@@ -18,15 +18,16 @@ from graphviz import Source
 from pkg_resources import resource_filename
 from pytz import timezone, utc
 from six import iteritems
+
 # import statsmodels as stats
 from sklearn.preprocessing import LabelEncoder
 from sqlalchemy import create_engine
-from xgboost import XGBClassifier, to_graphviz, plot_importance
+from xgboost import XGBClassifier, plot_importance, to_graphviz
 
 from glaucoma_risk_calculator_analytics_rest_api.utils import (
     PY3,
-    update_d,
     maybe_to_dict,
+    update_d,
 )
 
 if PY3:
@@ -55,14 +56,14 @@ else:
             out[1] = out[1].getvalue()
 
 
-"""
-emails = get_ipython().getoutput(
-  'sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v \'{"email":null}|{"email":""}\' | wc -l'
-)
+#
+# emails = get_ipython().getoutput(
+#  'sort -u glaucoma-risk-calculator-datadir/emails.txt | egrep -v \'{"email":null}|{"email":""}\' | wc -l'
+# )
 # ^Ignore duplicated and null entries
-emails = int(emails[0]) + 60  # 60 collected independently by OPSM
-print('emails collected:'.ljust(just), emails)
-"""
+# emails = int(emails[0]) + 60  # 60 collected independently by OPSM
+# print('emails collected:'.ljust(just), emails)
+#
 
 # Global variables FTW
 
@@ -75,10 +76,10 @@ with open(path.join(parent_dir, "_data", "joint_explosion.sql")) as f:
     joint_explosion_query = f.read()
 
 
-# /end global vars
+# end global vars
 
 
-def run(event_start, event_end, function):  # type: (datetime, datetime) -> dict
+def run(event_start, event_end, function):
     """
     Runner, wraps stdout and stderr also
 
@@ -91,7 +92,7 @@ def run(event_start, event_end, function):  # type: (datetime, datetime) -> dict
     :param function: function to run
     :type function: (datetime, datetime) -> {}
 
-    :return: dictionary to show on endpoint
+    :returns: dictionary to show on endpoint
     :rtype: dict
     """
     if PY3:
@@ -114,9 +115,7 @@ sydney = (
 )
 
 
-def analytics2(
-    event_start, event_end, to_dict=True
-):  # type: (datetime, datetime, bool) -> dict
+def analytics2(event_start, event_end, to_dict=True):
     """
     Runner
 
@@ -129,7 +128,7 @@ def analytics2(
     :param to_dict: Convert from Pandas formats to Python dictionary
     :type to_dict: bool
 
-    :return: dictionary to show on endpoint
+    :returns: dictionary to show on endpoint
     :rtype: dict
     """
     engine = create_engine(environ["RDBMS_URI"], echo=False)
@@ -195,7 +194,7 @@ def analytics2(
         FROM survey_tbl s
         FULL JOIN risk_res_tbl r
         ON s.risk_res_id = r.id;
-    """,
+        """,
         engine,
     )
     print("joint#:".ljust(just), "{:0>3}".format(len(joint.index)))
@@ -243,7 +242,7 @@ def analytics2(
         """
     SELECT COUNT(*)
     FROM risk_res_tbl r
-    WHERE 
+    WHERE
            r."createdAt" BETWEEN %(event_start)s::timestamptz AND %(event_end)s::timestamptz
            AND r.id IN ( SELECT id
                          FROM risk_res_tbl rr
@@ -369,7 +368,12 @@ def analytics2(
     ]
     print("step3_and_2#:".ljust(just), "{:0>3}".format(len(step3_and_2.index)))
 
-    def cover_fn(collection):  # type: (tuple) -> int
+    def cover_fn(collection):
+        """
+        :type collection: ```tuple```
+
+        :rtype: ```int```
+        """
         return sum(map(lambda s: len(s.index), collection))
 
     """
@@ -604,7 +608,7 @@ def run_join_for_pred_query(engine, event_start, event_end):
     )
 
 
-def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
+def analytics3(event_start, event_end):
     """
     Runner
 
@@ -614,7 +618,7 @@ def analytics3(event_start, event_end):  # type: (datetime, datetime) -> dict
     :param event_end: end datetime
     :type event_end: datetime
 
-    :return: dictionary to show on endpoint
+    :returns: dictionary to show on endpoint
     :rtype: dict
     """
     # event_start_iso = event_start.isoformat()

@@ -5,7 +5,7 @@ from json import dumps
 from platform import python_version_tuple
 from pprint import PrettyPrinter
 
-from bottle import request, HTTPResponse
+from bottle import HTTPResponse, request
 
 from glaucoma_risk_calculator_analytics_rest_api import is_test, redis
 

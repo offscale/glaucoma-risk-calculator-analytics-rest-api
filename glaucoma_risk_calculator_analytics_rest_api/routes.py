@@ -1,19 +1,19 @@
-# coding: utf-8
+# -*- coding: utf-8 -*-
 
 from __future__ import print_function
 
 from datetime import datetime, timedelta
 
-from bottle import response, request
+from bottle import request, response
 from dateutil.parser import parse
 
-from glaucoma_risk_calculator_analytics_rest_api import rest_api, __version__
+from glaucoma_risk_calculator_analytics_rest_api import __version__, rest_api
 from glaucoma_risk_calculator_analytics_rest_api.analytics import (
-    sydney,
     analytics2,
     analytics3,
+    sydney,
 )
-from glaucoma_risk_calculator_analytics_rest_api.utils import auth_needed, PY3
+from glaucoma_risk_calculator_analytics_rest_api.utils import PY3, auth_needed
 
 if PY3:
     # noinspection PyCompatibility

@@ -5,7 +5,8 @@ from __future__ import print_function
 from datetime import datetime, timedelta
 from os import environ
 from platform import python_version_tuple
-from unittest import TestCase, main as unittest_main
+from unittest import TestCase
+from unittest import main as unittest_main
 
 if python_version_tuple()[0] == "3":
     from unittest.mock import patch
@@ -33,7 +34,7 @@ class TestRestApi(TestCase):
         self.event_end = self.event_start + timedelta(days=720)
 
     def test_status(self):
-        """ Not really needed, but whatever """
+        """Not really needed, but whatever"""
         for s in ("/api", "/api/py", "/api/status"):
             status_resp = self.app.get(s).json
             for k in status_resp.keys():

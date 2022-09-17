@@ -5,7 +5,7 @@ from __future__ import print_function
 from os import environ
 from sys import stderr
 
-from glaucoma_risk_calculator_analytics_rest_api import routes, rest_api
+from glaucoma_risk_calculator_analytics_rest_api import rest_api, routes
 
 _version = routes.__version__
 
